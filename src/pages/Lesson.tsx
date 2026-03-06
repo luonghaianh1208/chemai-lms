@@ -65,14 +65,30 @@ export function Lesson() {
           </Badge>
         </div>
 
-        {/* Video Player Placeholder */}
-        <div className="aspect-video bg-slate-900 rounded-xl flex items-center justify-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-          <PlayCircle className="h-16 w-16 text-white/80 hover:text-white cursor-pointer transition-colors z-10" />
-          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white z-10">
-            <span className="text-sm font-medium">{lesson.title} - Video Bài giảng</span>
-            <span className="text-sm">00:00 / 12:30</span>
-          </div>
+        {/* Video Player */}
+        <div className="aspect-video bg-slate-900 rounded-xl relative overflow-hidden ring-1 ring-slate-200/50">
+          {lesson.youtubeUrl ? (
+             <iframe 
+               width="100%" 
+               height="100%" 
+               src={lesson.youtubeUrl} 
+               title="YouTube video player" 
+               frameBorder="0" 
+               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+               allowFullScreen
+               className="absolute inset-0 z-10"
+             ></iframe>
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                 <PlayCircle className="h-16 w-16 text-white/40 cursor-not-allowed" />
+              </div>
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white z-10">
+                <span className="text-sm font-medium">Video chưa được cung cấp cho bài học này.</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Content Tabs */}
@@ -81,19 +97,13 @@ export function Lesson() {
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'theory' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
             onClick={() => setActiveTab('theory')}
           >
-            Lý thuyết trọng tâm
-          </button>
-          <button 
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'examples' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-            onClick={() => setActiveTab('examples')}
-          >
-            Ví dụ minh họa
+            Lý thuyết & Hướng dẫn
           </button>
           <button 
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'practice' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
             onClick={() => setActiveTab('practice')}
           >
-            Bài tập vận dụng
+            Bài tập AI Sinh
           </button>
         </div>
 
@@ -102,24 +112,22 @@ export function Lesson() {
           {activeTab === 'theory' && (
             <div className="prose prose-slate max-w-none">
               <h3 className="text-lg font-semibold mb-4">Nội dung bài học</h3>
-              <p className="text-slate-700 whitespace-pre-line">{lesson.content || lesson.description}</p>
+              <p className="text-slate-700 whitespace-pre-line">{lesson.theoryContent || lesson.content || lesson.description}</p>
               
               <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
                 <p className="text-sm text-blue-800 font-medium">
-                  💡 Ghi chú: Nội dung bài học đang được hiển thị động từ dữ liệu hệ thống (LocalStorage).
+                  💡 Ghi chú: Kéo xuống dưới để xác nhận hoàn thành nội dung lý thuyết.
                 </p>
               </div>
             </div>
           )}
-          {activeTab === 'examples' && (
-            <div className="p-8 text-center text-slate-500">
-              Nội dung ví dụ minh họa đang được cập nhật...
-            </div>
-          )}
           {activeTab === 'practice' && (
-            <div className="p-8 text-center text-slate-500 flex flex-col items-center gap-4">
-              <p>Chuyển sang làm bài tập thực hành ứng dụng lý thuyết.</p>
-              <Button onClick={() => navigate('/practice')}>Đến trang Luyện tập</Button>
+            <div className="p-8 text-center flex flex-col items-center gap-4">
+              <h3 className="text-xl font-bold text-slate-900">Kiểm tra năng lực tự động</h3>
+              <p className="text-slate-500">AI sẽ tự động đọc lý thuyết và tạo bài tập đúng với trình độ hiện tại của bạn.</p>
+              <Button onClick={() => navigate('/practice')} size="lg" className="bg-gradient-to-r from-indigo-500 to-purple-600 border-0 mt-4">
+                <Sparkles className="h-4 w-4 mr-2" /> Bắt đầu giải bài AI
+              </Button>
             </div>
           )}
           
