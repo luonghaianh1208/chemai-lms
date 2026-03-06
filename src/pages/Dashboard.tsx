@@ -1,0 +1,138 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { PlayCircle, Target, Trophy, Clock, BookOpen, AlertCircle } from "lucide-react";
+
+export function Dashboard() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tổng quan học tập</h1>
+        <p className="text-slate-500">Chào mừng trở lại! Tiếp tục lộ trình học tập của bạn.</p>
+      </div>
+
+      {/* Stats Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tiến độ tổng thể</CardTitle>
+            <Target className="h-4 w-4 text-indigo-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">45%</div>
+            <p className="text-xs text-slate-500">+2% so với tuần trước</p>
+            <Progress value={45} className="mt-3" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Điểm trung bình</CardTitle>
+            <Trophy className="h-4 w-4 text-emerald-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">8.5</div>
+            <p className="text-xs text-slate-500">Mức Khá - Giỏi</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Thời gian học</CardTitle>
+            <Clock className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">12h 30m</div>
+            <p className="text-xs text-slate-500">Trong tuần này</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bài tập hoàn thành</CardTitle>
+            <BookOpen className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">124</div>
+            <p className="text-xs text-slate-500">Tỷ lệ đúng: 78%</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+        {/* Current Learning Path */}
+        <Card className="lg:col-span-4">
+          <CardHeader>
+            <CardTitle>Lộ trình đang học (Gợi ý bởi AI)</CardTitle>
+            <CardDescription>
+              Dựa trên kết quả kiểm tra, AI đề xuất bạn tập trung vào các nội dung sau.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start gap-4 rounded-lg border p-4 bg-indigo-50/50">
+              <div className="rounded-full bg-indigo-100 p-2 text-indigo-600">
+                <PlayCircle className="h-6 w-6" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="font-medium leading-none">Chương 4: Phản ứng oxi hóa - khử</p>
+                <p className="text-sm text-slate-500">Bài 12: Phản ứng oxi hóa - khử và ứng dụng</p>
+                <div className="flex items-center gap-2 pt-2">
+                  <Badge variant="secondary">Lý thuyết</Badge>
+                  <span className="text-xs text-slate-500">Tiến độ: 30%</span>
+                </div>
+              </div>
+              <Button size="sm">Tiếp tục học</Button>
+            </div>
+
+            <div className="flex items-start gap-4 rounded-lg border p-4">
+              <div className="rounded-full bg-slate-100 p-2 text-slate-600">
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="font-medium leading-none">Luyện tập: Cân bằng phương trình</p>
+                <p className="text-sm text-slate-500">Mức độ: Vận dụng (Bạn đang yếu phần này)</p>
+                <div className="flex items-center gap-2 pt-2">
+                  <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">Cần cải thiện</Badge>
+                </div>
+              </div>
+              <Button size="sm" variant="outline">Luyện tập ngay</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* AI Insights */}
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Phân tích từ AI</CardTitle>
+            <CardDescription>Đánh giá năng lực hiện tại của bạn</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-emerald-600 flex items-center gap-1">
+                  Điểm mạnh
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">Cấu tạo nguyên tử</Badge>
+                <Badge variant="secondary">Bảng tuần hoàn</Badge>
+                <Badge variant="secondary">Liên kết hóa học</Badge>
+              </div>
+            </div>
+            
+            <div className="space-y-2 pt-4 border-t">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  Cần cải thiện
+                </span>
+              </div>
+              <p className="text-sm text-slate-600">
+                Bạn thường xuyên sai sót trong việc xác định số oxi hóa và cân bằng phương trình phản ứng oxi hóa - khử phức tạp.
+              </p>
+              <Button variant="link" className="px-0 text-indigo-600 h-auto">Xem chi tiết phân tích &rarr;</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
