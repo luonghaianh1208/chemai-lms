@@ -82,8 +82,9 @@ export function TeacherDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
+    <>
+      <div className="space-y-6">
+        <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tính năng Giáo viên</h1>
         <p className="text-slate-500">Quản lý lớp học, bài giảng và theo dõi tiến độ học sinh.</p>
       </div>
@@ -337,6 +338,6 @@ export function TeacherDashboard() {
           </Card>
         </div>
       )}
-    </div>
+    </>
   );
 }
