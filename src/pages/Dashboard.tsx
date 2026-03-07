@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PlayCircle, Target, Trophy, Clock, BookOpen, AlertCircle, AlertTriangle, CalendarClock } from "lucide-react";
+import { PlayCircle, Target, Trophy, Clock, BookOpen, AlertCircle, AlertTriangle, CalendarClock, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Storage } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
