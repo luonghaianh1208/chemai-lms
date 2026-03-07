@@ -86,7 +86,7 @@ export function Practice() {
           // Backward compat: old cache format was plain array
           parsedCache = cacheObj;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (parsedCache && parsedCache.length > 0) {
@@ -116,7 +116,7 @@ export function Practice() {
 
     const user = await Storage.getUser();
     try {
-      const avgScore = user.overall_progress || 50;
+      const avgScore = (user as any).overall_progress || 50;
       toast.info(`AI đang thiết kế bài tập cho: ${lesson.title}...`);
       const res = await fetch("/.netlify/functions/generate-practice", {
         method: "POST",
@@ -148,7 +148,7 @@ export function Practice() {
       toast.error(`Lỗi tạo câu hỏi: ${error.message || "Không xác định"}. Khôi phục dữ liệu mẫu.`);
       const fallback = [
         { type: "mcq", text: "Trong phản ứng: $Cu + 2AgNO_3 \\rightarrow Cu(NO_3)_2 + 2Ag$. Chất khử là:", options: ["$Cu$", "$AgNO_3$", "$Cu(NO_3)_2$", "$Ag$"], correctAnswer: 0, explanation: "$Cu$ nhường electron (sự oxi hóa)." },
-        { type: "tf",  text: "Chất oxi hóa là chất nhường electron.", options: ["Đúng", "Sai"], correctAnswer: 1, explanation: "Chất oxi hóa nhận electron (sự khử)." },
+        { type: "tf", text: "Chất oxi hóa là chất nhường electron.", options: ["Đúng", "Sai"], correctAnswer: 1, explanation: "Chất oxi hóa nhận electron (sự khử)." },
         { type: "cloze", text: "Công thức hóa học của axit sunfuric là ___.", options: ["$H_2SO_4$", "$HCl$", "$HNO_3$"], correctAnswer: "$H_2SO_4$", explanation: "Công thức hóa học của axit sunfuric là $H_2SO_4$." },
       ];
       localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify({
@@ -191,14 +191,14 @@ export function Practice() {
     const question = questions[currentIndex];
     if (question.type === "short" && !shortAnswerText.trim()) return;
     if (question.type !== "short" && selectedAnswer === null) return;
-    
+
     setIsSubmitted(true);
     let isCorrect = false;
 
     if (question.type === "short") {
       const answerNorm = String(question.answer).toLowerCase().trim();
-      const inputNorm  = shortAnswerText.toLowerCase().trim();
-      isCorrect  = inputNorm.includes(answerNorm) || answerNorm.includes(inputNorm);
+      const inputNorm = shortAnswerText.toLowerCase().trim();
+      isCorrect = inputNorm.includes(answerNorm) || answerNorm.includes(inputNorm);
     } else {
       isCorrect = selectedAnswer === question.correctAnswer;
     }
@@ -223,13 +223,13 @@ export function Practice() {
       const scorePercentage = maxScore > 0 ? Math.round((earnedScore / maxScore) * 100) : 0;
       const passingPercentage = selectedLesson.passingPercentage || 80;
       const isPassed = scorePercentage >= passingPercentage;
-      
+
       await Storage.updateProgress(selectedLesson.id, "completed", scorePercentage);
       window.dispatchEvent(new CustomEvent("practice-state", { detail: { isPractice: false } }));
-      
+
       // Clear cache so that the next time they select this lesson, new questions are generated
       localStorage.removeItem(`chemai_practice_cache_${selectedLesson.id}`);
-      
+
       if (forceSubmit) {
         toast.warning(`Hết giờ! Tự động nộp bài. Bạn đạt ${scorePercentage}/100 điểm.`);
       } else if (isPassed) {
