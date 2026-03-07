@@ -1,101 +1,47 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Sparkles, CheckCircle2, XCircle, AlertCircle, Loader2, BookOpen, ChevronRight, ChevronDown, Clock, AlertTriangle, Play } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Storage } from "@/lib/storage";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-
-function MathMarkdown({ content }: { content: string }) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkMath]}
-      rehypePlugins={[rehypeKatex]}
-      className="prose prose-slate max-w-none text-base"
-      components={{
-        p: ({node, ...props}) => <span {...props} /> // Render p as span to prevent block breakage in options
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  );
-}
+import { LessonSelection } from "@/components/practice/LessonSelection";
+import { PrePracticeScreen } from "@/components/practice/PrePracticeScreen";
+import { TestingBoard } from "@/components/practice/TestingBoard";
 
 export function Practice() {
   const [availableLessons, setAvailableLessons] = useState<any[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
-  
+
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<any>(null);
   const [shortAnswerText, setShortAnswerText] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [generatingLesson, setGeneratingLesson] = useState<any>(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  
+
   const [isPracticeStarted, setIsPracticeStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Load all theory lessons that have some content
-    const lessons = Storage.getLessons().filter(l => l.type === 'theory');
+    const lessons = Storage.getLessons().filter((l) => l.type === "theory");
     setAvailableLessons(lessons);
   }, []);
 
-  const handleSelectLesson = async (lesson: any) => {
-    const cacheKey = `chemai_practice_cache_${lesson.id}`;
-    const cached = localStorage.getItem(cacheKey);
-    let parsedCache = null;
-    
-    if (cached) {
-      try {
-         parsedCache = JSON.parse(cached);
-      } catch (e) {}
-    }
-
-    if (parsedCache && parsedCache.length > 0) {
-       setQuestions(parsedCache);
-       setCurrentIndex(0);
-       setCorrectCount(0);
-       setSelectedAnswer(null);
-       setIsSubmitted(false);
-       setIsDraggingOver(false);
-       
-       setSelectedLesson(lesson);
-       setIsPracticeStarted(false);
-       setIsTimeUp(false);
-       setTimeRemaining((lesson.practiceConfig?.timeLimit || 15) * 60);
-    } else {
-       await generateQuestions(lesson);
-    }
-  };
-
-  const confirmStartPractice = () => {
-    setIsPracticeStarted(true);
-    window.dispatchEvent(new CustomEvent('practice-state', { detail: { isPractice: true } }));
-  };
-
+  // ---- Timer countdown ----
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isPracticeStarted && !loading && timeRemaining !== null && timeRemaining > 0 && !isTimeUp) {
+    if (isPracticeStarted && timeRemaining !== null && timeRemaining > 0 && !isTimeUp) {
       interval = setInterval(() => {
-        setTimeRemaining(prev => {
+        setTimeRemaining((prev) => {
           if (prev && prev <= 1) {
             setIsTimeUp(true);
             toast.error("Đã hết thời gian làm bài! Tự động nộp bài.");
-            handleNext(true); // Auto submit
+            handleNext(true);
             return 0;
           }
           return prev ? prev - 1 : 0;
@@ -103,18 +49,46 @@ export function Practice() {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isPracticeStarted, loading, timeRemaining, isTimeUp]);
+  }, [isPracticeStarted, timeRemaining, isTimeUp]);
 
+  // ---- Tab-switch cheat detection ----
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && isPracticeStarted && !isTimeUp && timeRemaining && timeRemaining > 0) {
-        toast.error("CẢNH BÁO: Không được phép chuyển Tab hoặc thoát ra ngoài khi đang làm bài thi!", { duration: 6000 });
+        toast.error("CẢNH BÁO: Không được phép chuyển Tab hoặc thoát ra ngoài khi đang làm bài thi!", {
+          duration: 6000,
+        });
         if (selectedLesson?.title) Storage.addCheatWarning(selectedLesson.title);
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [isPracticeStarted, isTimeUp, timeRemaining, selectedLesson]);
+
+  // ---- AI question generation with cache ----
+  const handleSelectLesson = async (lesson: any) => {
+    const cacheKey = `chemai_practice_cache_${lesson.id}`;
+    const cached = localStorage.getItem(cacheKey);
+    let parsedCache = null;
+    if (cached) {
+      try { parsedCache = JSON.parse(cached); } catch (e) {}
+    }
+
+    if (parsedCache && parsedCache.length > 0) {
+      setQuestions(parsedCache);
+      setCurrentIndex(0);
+      setCorrectCount(0);
+      setSelectedAnswer(null);
+      setIsSubmitted(false);
+      setIsDraggingOver(false);
+      setSelectedLesson(lesson);
+      setIsPracticeStarted(false);
+      setIsTimeUp(false);
+      setTimeRemaining((lesson.practiceConfig?.timeLimit || 15) * 60);
+    } else {
+      await generateQuestions(lesson);
+    }
+  };
 
   const generateQuestions = async (lesson: any) => {
     setGeneratingLesson(lesson);
@@ -126,60 +100,40 @@ export function Practice() {
     setIsDraggingOver(false);
 
     const user = Storage.getUser();
-    
     try {
-      const avgScore = user.overall_progress || 50; 
-      
+      const avgScore = user.overall_progress || 50;
       toast.info(`AI đang thiết kế bài tập cho: ${lesson.title}...`);
-      const bodyPayload = {
-         theory: lesson.theoryContent || lesson.description || "Kiến thức căn bản hóa học",
-         studentScore: avgScore,
-         config: lesson.practiceConfig || { mcq: 3, tf: 1, short: 1 }
-      };
-
-      const res = await fetch('/.netlify/functions/generate-practice', {
-         method: 'POST',
-         body: JSON.stringify(bodyPayload)
+      const res = await fetch("/.netlify/functions/generate-practice", {
+        method: "POST",
+        body: JSON.stringify({
+          theory: lesson.theoryContent || lesson.description || "Kiến thức căn bản hóa học",
+          studentScore: avgScore,
+          config: lesson.practiceConfig || { mcq: 3, tf: 1, short: 1 },
+        }),
       });
-      
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(`API returned state ${res.status}: ${errText}`);
       }
       const data = await res.json();
-      let generatedQuestions = [];
-      
-      const parseRawJSON = (rawString: string) => {
-         const cleanStr = rawString.replace(/```json/g, '').replace(/```/g, '');
-         return JSON.parse(cleanStr).questions || [];
-      };
-      
-      if (data.rawResponse) {
-          generatedQuestions = parseRawJSON(data.rawResponse);
-      } else if (data.questions) {
-         generatedQuestions = data.questions;
-      } else if (typeof data === 'string') {
-         try { generatedQuestions = parseRawJSON(data); } catch(e) { console.error("Parse string: ", e); }
-      } else if (data.reply) {
-         try { generatedQuestions = parseRawJSON(data.reply); } catch(e) { console.error("Parse reply: ", e); }
-      }
 
-      if (generatedQuestions.length === 0) {
-        throw new Error("Không có câu hỏi nào được lấy ra từ AI!");
-      }
+      // Server guarantees clean `questions` array via Gemini responseSchema
+      const generatedQuestions = data.questions || [];
+
+      if (generatedQuestions.length === 0) throw new Error("Không có câu hỏi nào được lấy ra từ AI!");
 
       localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify(generatedQuestions));
       setQuestions(generatedQuestions);
     } catch (error: any) {
       console.error("AI Generation Process Failed:", error);
-      toast.error(`Lỗi tạo câu hỏi: ${error.message || "Không xác định"}. Khôi phục dữ liệu mẫu để chống lỗi.`);
-      const fallbackQuestions = [
-         { type: "mcq", text: "Trong phản ứng: $Cu + 2AgNO_3 \\rightarrow Cu(NO_3)_2 + 2Ag$. Chất khử là:", options: ["$Cu$", "$AgNO_3$", "$Cu(NO_3)_2$", "$Ag$"], correctAnswer: 0, explanation: "$Cu$ nhường electron (sự oxi hóa)." },
-         { type: "tf", text: "Chất oxi hóa là chất nhường electron.", options: ["Đúng", "Sai"], correctAnswer: 1, explanation: "Chất oxi hóa nhận electron (sự khử)." },
-         { type: "cloze", text: "Công thức hóa học của axit sunfuric là ___.", options: ["$H_2SO_4$", "$HCl$", "$HNO_3$"], correctAnswer: "$H_2SO_4$", explanation: "Công thức hóa học của axit sunfuric là $H_2SO_4$." }
+      toast.error(`Lỗi tạo câu hỏi: ${error.message || "Không xác định"}. Khôi phục dữ liệu mẫu.`);
+      const fallback = [
+        { type: "mcq", text: "Trong phản ứng: $Cu + 2AgNO_3 \\rightarrow Cu(NO_3)_2 + 2Ag$. Chất khử là:", options: ["$Cu$", "$AgNO_3$", "$Cu(NO_3)_2$", "$Ag$"], correctAnswer: 0, explanation: "$Cu$ nhường electron (sự oxi hóa)." },
+        { type: "tf",  text: "Chất oxi hóa là chất nhường electron.", options: ["Đúng", "Sai"], correctAnswer: 1, explanation: "Chất oxi hóa nhận electron (sự khử)." },
+        { type: "cloze", text: "Công thức hóa học của axit sunfuric là ___.", options: ["$H_2SO_4$", "$HCl$", "$HNO_3$"], correctAnswer: "$H_2SO_4$", explanation: "Công thức hóa học của axit sunfuric là $H_2SO_4$." },
       ];
-      localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify(fallbackQuestions));
-      setQuestions(fallbackQuestions);
+      localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify(fallback));
+      setQuestions(fallback);
     } finally {
       setGeneratingLesson(null);
       setSelectedLesson(lesson);
@@ -189,364 +143,102 @@ export function Practice() {
     }
   };
 
+  const confirmStartPractice = () => {
+    setIsPracticeStarted(true);
+    window.dispatchEvent(new CustomEvent("practice-state", { detail: { isPractice: true } }));
+  };
+
   const handleBackToSelection = () => {
     setSelectedLesson(null);
     setIsPracticeStarted(false);
-    window.dispatchEvent(new CustomEvent('practice-state', { detail: { isPractice: false } }));
+    window.dispatchEvent(new CustomEvent("practice-state", { detail: { isPractice: false } }));
   };
 
-  const question = questions[currentIndex];
-
-  const handleSubmit = async () => {
-    if (selectedAnswer !== null) {
-      setIsSubmitted(true);
-      
-      let isCorrect = false;
-      if (question.type === 'mcq' || question.type === 'tf' || question.type === 'cloze') {
-         isCorrect = selectedAnswer === question.correctAnswer;
-      }
-
-      if (isCorrect) {
-        setCorrectCount(prev => prev + 1);
-        toast.success("Chính xác! 🚀");
-      } else {
-        toast.error("Chưa chính xác! Hãy đọc kỹ phần giải thích nhé 👀");
-      }
+  const handleSubmit = () => {
+    if (selectedAnswer === null) return;
+    setIsSubmitted(true);
+    const question = questions[currentIndex];
+    const isCorrect = selectedAnswer === question.correctAnswer;
+    if (isCorrect) {
+      setCorrectCount((prev) => prev + 1);
+      toast.success("Chính xác! 🚀");
+    } else {
+      toast.error("Chưa chính xác! Hãy đọc kỹ phần giải thích nhé 👀");
     }
   };
 
   const handleNext = (forceSubmit = false) => {
     if (currentIndex < questions.length - 1 && !forceSubmit) {
-      setCurrentIndex(prev => prev + 1);
+      setCurrentIndex((prev) => prev + 1);
       setSelectedAnswer(null);
       setIsSubmitted(false);
       setIsDraggingOver(false);
     } else {
       const score = Math.round((correctCount / questions.length) * 100) || 0;
-      Storage.updateProgress(selectedLesson.id, 'completed', score);
-      window.dispatchEvent(new CustomEvent('practice-state', { detail: { isPractice: false } }));
+      Storage.updateProgress(selectedLesson.id, "completed", score);
+      window.dispatchEvent(new CustomEvent("practice-state", { detail: { isPractice: false } }));
       if (forceSubmit) {
         toast.warning(`Hết giờ! Tự động nộp bài. Bạn đạt ${score}/100 điểm.`);
       } else {
         toast.success(`Hoàn thành xuất sắc ${selectedLesson?.title}! Bạn đạt ${score}/100 điểm.`);
       }
-      navigate('/analytics');
+      navigate("/analytics");
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  const toggleChapter = (chapter: string) => {
+    setExpandedChapters((prev) => ({ ...prev, [chapter]: !prev[chapter] }));
   };
 
-  // ----- UI: LESSON SELECTION -----
-  if (!selectedLesson && !generatingLesson) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Góc Luyện Tập Tùy Chọn</h1>
-          <p className="text-slate-500">Hãy chọn một chủ đề bên dưới để AI thiết kế bài tập dành riêng cho bạn.</p>
-        </div>
+  // ----- RENDER -----
 
-        {availableLessons.length === 0 ? (
-          <Card className="p-8 text-center text-slate-500">
-            Khóa học hiện tại chưa có bài giảng nào. Vui lòng liên hệ Giáo viên.
-          </Card>
-        ) : (
-          <div className="space-y-8">
-            {Object.entries(availableLessons.reduce((acc, curr) => {
-              if (!acc[curr.chapter]) acc[curr.chapter] = [];
-              acc[curr.chapter].push(curr);
-              return acc;
-            }, {} as Record<string, any[]>)).map(([chapter, lessonsInChapter]) => (
-              <div key={chapter} className="space-y-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <button 
-                   onClick={() => setExpandedChapters(prev => ({...prev, [chapter]: !prev[chapter]}))}
-                   className="w-full flex items-center justify-between text-left group"
-                >
-                   <h2 className="text-xl font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors flex items-center gap-2">
-                      <BookOpen className="h-5 w-5 text-indigo-500" />
-                      {chapter} <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2">{lessonsInChapter.length} bài</span>
-                   </h2>
-                   {expandedChapters[chapter] ? <ChevronDown className="h-5 w-5 text-slate-400 group-hover:text-indigo-500" /> : <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-indigo-500" />}
-                </button>
-                
-                {expandedChapters[chapter] && (
-                  <div className="grid gap-4 md:grid-cols-2 pt-4 border-t border-slate-100 mt-2">
-                    {lessonsInChapter.map((lesson: any) => (
-                    <Card key={lesson.id} className="hover:border-indigo-300 transition-colors cursor-pointer" onClick={() => handleSelectLesson(lesson)}>
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                          <Badge variant="secondary" className="bg-indigo-50 text-indigo-700">{lesson.chapter}</Badge>
-                          <Sparkles className="h-4 w-4 text-amber-500" />
-                        </div>
-                        <CardTitle className="text-lg mt-2">{lesson.title}</CardTitle>
-                        {lesson.dueDate && (
-                           <div className={`flex items-center gap-1.5 mt-2 text-xs font-semibold ${new Date(lesson.dueDate) < new Date() ? 'text-red-600' : 'text-orange-600'}`}>
-                              {new Date(lesson.dueDate) < new Date() ? <AlertTriangle className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
-                              {new Date(lesson.dueDate) < new Date() ? 'Đã quá hạn: ' : 'Hạn hoàn thành: '}
-                              {new Date(lesson.dueDate).toLocaleString('vi-VN')}
-                           </div>
-                        )}
-                      </CardHeader>
-                      <CardContent className="pb-4">
-                        <p className="text-sm text-slate-600 line-clamp-2">
-                          {lesson.practiceConfig?.mcq || 0} Trắc nghiệm, {lesson.practiceConfig?.tf || 0} Đúng/Sai, {lesson.practiceConfig?.short || 0} Trả lời ngắn.
-                        </p>
-                      </CardContent>
-                      <CardFooter className="pt-0 border-t mt-4 flex justify-between items-center py-3 bg-slate-50 rounded-b-xl">
-                        <span className="text-sm font-medium text-slate-600">Bắt đầu Thực hành</span>
-                        <ChevronRight className="h-4 w-4 text-indigo-600" />
-                      </CardFooter>
-                    </Card>
-                  ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ----- UI: PRE-PRACTICE SCREEN -----
-  if (selectedLesson && !isPracticeStarted) {
-    return (
-      <div className="max-w-3xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-        <div className="flex items-center justify-between border-b pb-4">
-          <Button variant="link" onClick={handleBackToSelection} className="h-auto p-0 text-slate-500 hover:text-indigo-600">
-            &larr; Quay lại
-          </Button>
-          <h1 className="text-xl font-bold text-slate-900">{selectedLesson.title}</h1>
-        </div>
-        <Card className="border-2 border-indigo-100 shadow-md">
-          <CardHeader className="bg-indigo-50/50">
-             <CardTitle className="flex justify-center text-2xl text-indigo-900 py-4">Chuẩn bị Kiểm tra</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6 py-6 text-center">
-             <div className="flex justify-center gap-8 text-slate-600">
-                <div className="space-y-1">
-                   <p className="text-xs uppercase font-bold tracking-wider opacity-70">Thời gian</p>
-                   <p className="text-2xl font-bold flex items-center justify-center gap-2"><Clock className="h-6 w-6 text-indigo-500" /> {selectedLesson.practiceConfig?.timeLimit || 15} Phút</p>
-                </div>
-                <div className="space-y-1">
-                   <p className="text-xs uppercase font-bold tracking-wider opacity-70">Số câu hỏi</p>
-                   <p className="text-2xl font-bold text-slate-900">{
-                     (selectedLesson.practiceConfig?.mcq || 0) + 
-                     (selectedLesson.practiceConfig?.tf || 0) + 
-                     (selectedLesson.practiceConfig?.short || 0)
-                   } Câu</p>
-                </div>
-             </div>
-             
-             <div className="bg-red-50 text-red-800 p-4 rounded-xl text-sm text-left mx-auto max-w-lg space-y-2 border border-red-100">
-                <p className="font-bold flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Nội quy phòng thi:</p>
-                <ul className="list-disc pl-6 space-y-1 opacity-90">
-                   <li>Ngay khi bấm bắt đầu, đồng hồ sẽ đếm ngược liên tục.</li>
-                   <li>Hệ thống <b>không cho phép chuyển Tab</b> trình duyệt hoặc thoát khỏi màn hình.</li>
-                   <li>Chỉ được sử dụng Trợ giảng AI tối đa <b>3 lượt</b> và AI chỉ đưa ra gợi ý, không nhắc đáp án.</li>
-                </ul>
-             </div>
-          </CardContent>
-          <CardFooter className="justify-center py-6 bg-slate-50">
-             <Button size="lg" className="h-14 px-8 text-lg bg-indigo-600 hover:bg-indigo-700 w-full max-w-sm shadow-xl" onClick={confirmStartPractice}>
-               <Play className="h-5 w-5 mr-3" /> BẮT ĐẦU LÀM BÀI
-             </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
-  // ----- UI: LOADING PRACTICE -----
   if (generatingLesson) {
     return (
-       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-          <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
-          <p className="text-lg font-medium text-slate-600">AI đang thiết kế bài tập độc quyền cho bạn...</p>
-          <p className="text-sm text-slate-500 font-medium">Chủ đề: {generatingLesson.title}</p>
-       </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
+        <p className="text-lg font-medium text-slate-600">AI đang thiết kế bài tập độc quyền cho bạn...</p>
+        <p className="text-sm text-slate-500 font-medium">Chủ đề: {generatingLesson.title}</p>
+      </div>
     );
   }
 
-  // ----- UI: ACTIVE QUESTION -----
-  if (!question) {
-     return null;
+  if (!selectedLesson) {
+    return (
+      <LessonSelection
+        availableLessons={availableLessons}
+        expandedChapters={expandedChapters}
+        onToggleChapter={toggleChapter}
+        onSelectLesson={handleSelectLesson}
+      />
+    );
   }
 
-  const renderQuestionInput = () => {
-     if (question.type === 'mcq' || question.type === 'tf') {
-        return (
-          <div className="space-y-3">
-            {question.options.map((option: string, index: number) => {
-              const isSelected = selectedAnswer === index;
-              const isCorrect = index === question.correctAnswer;
-              
-              let optionClass = "border-slate-200 hover:border-indigo-300 hover:bg-slate-50";
-              if (isSubmitted) {
-                if (isCorrect) optionClass = "border-emerald-500 bg-emerald-50 text-emerald-900";
-                else if (isSelected) optionClass = "border-red-500 bg-red-50 text-red-900";
-                else optionClass = "border-slate-200 opacity-50";
-              } else if (isSelected) {
-                optionClass = "border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600";
-              }
-
-              return (
-                <button
-                  key={index}
-                  disabled={isSubmitted}
-                  onClick={() => setSelectedAnswer(index)}
-                  className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center justify-between ${optionClass}`}
-                >
-                  <div className="flex gap-2">
-                    <span className="font-semibold text-slate-700">{question.type === 'mcq' ? String.fromCharCode(65 + index) + '.' : ''}</span>
-                    <MathMarkdown content={option} />
-                  </div>
-                  {isSubmitted && isCorrect && <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />}
-                  {isSubmitted && isSelected && !isCorrect && <XCircle className="h-5 w-5 text-red-500 shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-        );
-     } else if (question.type === 'short') {
-        const answerNorm = String(question.answer).toLowerCase().trim();
-        const inputNorm = shortAnswerText.toLowerCase().trim();
-        const isCorrect = inputNorm.includes(answerNorm) || answerNorm.includes(inputNorm);
-
-        return (
-           <div className="space-y-4">
-              <Input 
-                 placeholder="Nhập câu trả lời ngắn gọn..." 
-                 value={shortAnswerText}
-                 onChange={(e) => setShortAnswerText(e.target.value)}
-                 disabled={isSubmitted}
-                 className={cn("h-12 text-base shadow-sm", isSubmitted && isCorrect && "border-emerald-500 ring-1 ring-emerald-500 text-emerald-900 bg-emerald-50", isSubmitted && !isCorrect && "border-red-500 ring-1 ring-red-500 text-red-900 bg-red-50")}
-              />
-              {isSubmitted && !isCorrect && (
-                <div className="p-4 bg-indigo-50 text-indigo-900 rounded-xl border border-indigo-200">
-                  <div className="flex items-center gap-2 mb-1">
-                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                     <strong className="text-sm">Gợi ý đáp án đúng:</strong>
-                  </div>
-                  <MathMarkdown content={question.answer} />
-                </div>
-              )}
-           </div>
-        );
-     } else if (question.type === 'cloze') {
-         return (
-            <div className="space-y-4 mt-6">
-              <p className="text-sm font-semibold text-slate-500 mb-3 uppercase tracking-wider">Kéo thả thẻ từ sau vào ô trống (hoặc click để điền):</p>
-              <div className="flex flex-wrap gap-3">
-                 {question.options.map((option: string, index: number) => {
-                    const isUsed = selectedAnswer === option;
-                    return (
-                       <div 
-                          key={index}
-                          draggable={!isSubmitted}
-                          onDragStart={(e) => {
-                             if (!isSubmitted) e.dataTransfer.setData("text/plain", option);
-                          }}
-                          onClick={() => !isSubmitted && setSelectedAnswer(option)}
-                          className={cn("px-4 py-2 border-2 rounded-xl transition-all cursor-grab active:cursor-grabbing hover:shadow-md bg-white select-none whitespace-normal min-h-[46px] flex items-center justify-center font-medium", 
-                             isUsed ? "opacity-40 border-slate-200 cursor-default shadow-inner" : "border-indigo-200 hover:border-indigo-400 text-indigo-900 shadow-sm"
-                          )}
-                       >
-                          <MathMarkdown content={option} />
-                       </div>
-                    );
-                 })}
-              </div>
-            </div>
-         );
-      }
-  };
-
-  const getQuestionTypeBadge = () => {
-    switch(question.type) {
-      case 'mcq': return "Trắc nghiệm 4 đáp án";
-      case 'tf': return "Đúng / Sai";
-      case 'short': return "Trả lời ngắn";
-      case 'cloze': return "Điền từ (Kéo Thả)";
-      default: return "Câu hỏi";
-    }
-  };
+  if (!isPracticeStarted) {
+    return (
+      <PrePracticeScreen
+        lesson={selectedLesson}
+        onStart={confirmStartPractice}
+        onBack={handleBackToSelection}
+      />
+    );
+  }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <Button variant="link" onClick={handleBackToSelection} className="h-auto p-0 text-slate-500 hover:text-indigo-600 justify-start w-fit">
-             &larr; Chọn bài khác
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-tight">
-            {selectedLesson.title}
-          </h1>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <Badge variant="outline" className="text-indigo-600 border-indigo-200 bg-indigo-50 shadow-sm">
-            {getQuestionTypeBadge()}
-          </Badge>
-        </div>
-      </div>
-
-      <Card className="border-2 border-indigo-100 shadow-lg">
-        <CardHeader className="bg-indigo-50/70 pb-4 border-b border-indigo-100">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              Câu hỏi {currentIndex + 1}/{questions.length}
-            </CardTitle>
-            <div className="flex items-center gap-4">
-               {timeRemaining !== null && (
-                  <span className={`text-sm font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${timeRemaining < 60 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-white text-slate-700 border-slate-200'}`}>
-                     <Clock className="h-4 w-4" /> {formatTime(timeRemaining)}
-                  </span>
-               )}
-               <span className="text-sm font-medium text-emerald-600 flex items-center gap-1.5 bg-emerald-100/50 px-2 py-1 rounded-full border border-emerald-200">
-                 <Sparkles className="h-4 w-4" /> AI Generated
-               </span>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-8">
-          <div className="text-xl font-medium text-slate-900 leading-relaxed font-serif">
-            {renderQuestionText()}
-          </div>
-
-          {renderQuestionInput()}
-
-          {isSubmitted && (
-            <div className={`p-5 rounded-2xl border bg-slate-50 border-slate-200 mt-6 shadow-sm`}>
-              <div className="flex gap-4">
-                <AlertCircle className={`h-6 w-6 shrink-0 text-indigo-600 mt-0.5`} />
-                <div className="space-y-2">
-                  <h4 className={`font-bold text-indigo-900 text-lg`}>
-                    Giải thích từ AI Tutor:
-                  </h4>
-                  <div className={`text-base text-slate-700 leading-relaxed`}>
-                    <MathMarkdown content={question.explanation} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="bg-slate-50/50 border-t p-5 flex justify-between gap-4">
-          <Button variant="ghost" className="text-slate-500 hover:text-slate-700 bg-white border shadow-sm">Báo lỗi câu hỏi</Button>
-          {!isSubmitted ? (
-            <Button onClick={handleSubmit} disabled={selectedAnswer === null} className="min-w-[140px] text-base h-11 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
-              Kiểm tra
-            </Button>
-          ) : (
-            <Button onClick={handleNext} className="min-w-[140px] gap-2 text-base h-11 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">
-               {currentIndex < questions.length - 1 ? 'Câu tiếp theo' : 'Hoàn thành Bài tập'} 
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
-    </div>
+    <TestingBoard
+      lesson={selectedLesson}
+      questions={questions}
+      currentIndex={currentIndex}
+      selectedAnswer={selectedAnswer}
+      shortAnswerText={shortAnswerText}
+      isSubmitted={isSubmitted}
+      isDraggingOver={isDraggingOver}
+      timeRemaining={timeRemaining}
+      onSelectAnswer={setSelectedAnswer}
+      onShortAnswerChange={setShortAnswerText}
+      onSetIsDraggingOver={setIsDraggingOver}
+      onSubmit={handleSubmit}
+      onNext={handleNext}
+      onBack={handleBackToSelection}
+    />
   );
 }
