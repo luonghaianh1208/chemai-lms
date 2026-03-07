@@ -20,7 +20,7 @@ export const handler = async (event) => {
     
     const ai = new GoogleGenAI({ apiKey: apiKey });
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-flash-latest',
         contents: `Bạn là một gia sư Hóa học thông minh tên là AI Tutor. Hãy trả lời câu hỏi sau bằng tiếng Việt một cách ngắn gọn, dễ hiểu và thân thiện: ${message}`
     });
 
