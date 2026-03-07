@@ -37,6 +37,7 @@ export function Practice() {
   const [shortAnswerText, setShortAnswerText] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [generatingLesson, setGeneratingLesson] = useState<any>(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   
@@ -53,16 +54,36 @@ export function Practice() {
     setAvailableLessons(lessons);
   }, []);
 
-  const handleSelectLesson = (lesson: any) => {
-    setSelectedLesson(lesson);
-    setIsPracticeStarted(false);
-    setIsTimeUp(false);
-    setTimeRemaining((lesson.practiceConfig?.timeLimit || 15) * 60);
+  const handleSelectLesson = async (lesson: any) => {
+    const cacheKey = `chemai_practice_cache_${lesson.id}`;
+    const cached = localStorage.getItem(cacheKey);
+    let parsedCache = null;
+    
+    if (cached) {
+      try {
+         parsedCache = JSON.parse(cached);
+      } catch (e) {}
+    }
+
+    if (parsedCache && parsedCache.length > 0) {
+       setQuestions(parsedCache);
+       setCurrentIndex(0);
+       setCorrectCount(0);
+       setSelectedAnswer(null);
+       setIsSubmitted(false);
+       setIsDraggingOver(false);
+       
+       setSelectedLesson(lesson);
+       setIsPracticeStarted(false);
+       setIsTimeUp(false);
+       setTimeRemaining((lesson.practiceConfig?.timeLimit || 15) * 60);
+    } else {
+       await generateQuestions(lesson);
+    }
   };
 
   const confirmStartPractice = () => {
     setIsPracticeStarted(true);
-    fetchQuestions(selectedLesson);
     window.dispatchEvent(new CustomEvent('practice-state', { detail: { isPractice: true } }));
   };
 
@@ -95,9 +116,8 @@ export function Practice() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [isPracticeStarted, isTimeUp, timeRemaining, selectedLesson]);
 
-  const fetchQuestions = async (lesson: any) => {
-    setSelectedLesson(lesson);
-    setLoading(true);
+  const generateQuestions = async (lesson: any) => {
+    setGeneratingLesson(lesson);
     setQuestions([]);
     setCurrentIndex(0);
     setCorrectCount(0);
@@ -148,17 +168,24 @@ export function Practice() {
         throw new Error("Không có câu hỏi nào được lấy ra từ AI!");
       }
 
+      localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify(generatedQuestions));
       setQuestions(generatedQuestions);
-      setLoading(false);
     } catch (error: any) {
       console.error("AI Generation Process Failed:", error);
       toast.error(`Lỗi tạo câu hỏi: ${error.message || "Không xác định"}. Khôi phục dữ liệu mẫu để chống lỗi.`);
-      setQuestions([
+      const fallbackQuestions = [
          { type: "mcq", text: "Trong phản ứng: $Cu + 2AgNO_3 \\rightarrow Cu(NO_3)_2 + 2Ag$. Chất khử là:", options: ["$Cu$", "$AgNO_3$", "$Cu(NO_3)_2$", "$Ag$"], correctAnswer: 0, explanation: "$Cu$ nhường electron (sự oxi hóa)." },
          { type: "tf", text: "Chất oxi hóa là chất nhường electron.", options: ["Đúng", "Sai"], correctAnswer: 1, explanation: "Chất oxi hóa nhận electron (sự khử)." },
          { type: "cloze", text: "Công thức hóa học của axit sunfuric là ___.", options: ["$H_2SO_4$", "$HCl$", "$HNO_3$"], correctAnswer: "$H_2SO_4$", explanation: "Công thức hóa học của axit sunfuric là $H_2SO_4$." }
-      ]);
-      setLoading(false);
+      ];
+      localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify(fallbackQuestions));
+      setQuestions(fallbackQuestions);
+    } finally {
+      setGeneratingLesson(null);
+      setSelectedLesson(lesson);
+      setIsPracticeStarted(false);
+      setIsTimeUp(false);
+      setTimeRemaining((lesson.practiceConfig?.timeLimit || 15) * 60);
     }
   };
 
@@ -214,7 +241,7 @@ export function Practice() {
   };
 
   // ----- UI: LESSON SELECTION -----
-  if (!selectedLesson) {
+  if (!selectedLesson && !generatingLesson) {
     return (
       <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
         <div>
@@ -334,17 +361,21 @@ export function Practice() {
   }
 
   // ----- UI: LOADING PRACTICE -----
-  if (loading || !question) {
+  if (generatingLesson) {
     return (
        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
           <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
           <p className="text-lg font-medium text-slate-600">AI đang thiết kế bài tập độc quyền cho bạn...</p>
-          <p className="text-sm text-slate-500 font-medium">Chủ đề: {selectedLesson.title}</p>
+          <p className="text-sm text-slate-500 font-medium">Chủ đề: {generatingLesson.title}</p>
        </div>
     );
   }
 
   // ----- UI: ACTIVE QUESTION -----
+  if (!question) {
+     return null;
+  }
+
   const renderQuestionInput = () => {
      if (question.type === 'mcq' || question.type === 'tf') {
         return (
