@@ -126,6 +126,27 @@ export const Storage = {
   updateStudentStatus(studentId: number, status: string) {
     const students = this.getStudents();
     const updated = students.map((s: any) => s.id === studentId ? { ...s, status } : s);
+    localStorage.setItem('students_data', JSON.stringify(updated.filter((s:any) => s.id !== 999))); // Dont save mock
+  },
+
+  addStudent(studentData: any) {
+    this.initialize();
+    const students = JSON.parse(localStorage.getItem('students_data') || '[]');
+    const newId = students.length > 0 ? Math.max(...students.map((s: any) => s.id)) + 1 : 1;
+    const newStudent = {
+      ...studentData,
+      id: newId,
+      score: 0,
+      status: "active"
+    };
+    students.push(newStudent);
+    localStorage.setItem('students_data', JSON.stringify(students));
+    return newStudent;
+  },
+
+  updateStudent(id: number, updatedData: any) {
+    const students = JSON.parse(localStorage.getItem('students_data') || '[]');
+    const updated = students.map((s: any) => s.id === id ? { ...s, ...updatedData } : s);
     localStorage.setItem('students_data', JSON.stringify(updated));
   },
 

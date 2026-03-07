@@ -113,23 +113,22 @@ export function Lesson() {
         {/* Tab Content */}
         <div className="flex-1 bg-white rounded-xl border border-slate-200 p-6 flex flex-col justify-between">
           {activeTab === 'theory' && (
-            <div className="prose prose-slate max-w-none">
-              <h3 className="text-lg font-semibold mb-4">Nội dung bài học</h3>
-              <div className="text-slate-700 leading-relaxed">
-                <ReactMarkdown
-                  remarkPlugins={[remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                >
-                  {lesson.theoryContent || lesson.content || lesson.description}
-                </ReactMarkdown>
-              </div>
+            <article className="prose prose-indigo prose-lg max-w-none text-justify leading-loose prose-headings:text-indigo-900 prose-a:text-indigo-600 prose-li:marker:text-indigo-500">
+              <h3 className="text-xl font-bold mb-6 text-slate-900 border-b pb-2">Nội dung bài học & Lý thuyết trọng tâm</h3>
+              <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+              >
+                {lesson.theoryContent || lesson.content || lesson.description}
+              </ReactMarkdown>
               
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <p className="text-sm text-blue-800 font-medium">
-                  💡 Ghi chú: Kéo xuống dưới để xác nhận hoàn thành nội dung lý thuyết.
+              <div className="mt-8 p-4 bg-blue-50/80 rounded-lg border border-blue-100 flex items-start gap-3 not-prose">
+                <span className="text-blue-500 mt-0.5">💡</span>
+                <p className="text-sm text-blue-800 font-medium m-0 leading-relaxed">
+                  Ghi chú: Hãy đọc kỹ toàn bộ nội dung lý thuyết phía trên. Sau khi đã nắm vững kiến thức, hãy kéo xuống cuối trang để bấm <strong>Xác nhận hoàn thành</strong> hoặc chuyển sang tab <strong>Bài tập AI Sinh</strong> để kiểm tra năng lực.
                 </p>
               </div>
-            </div>
+            </article>
           )}
           {activeTab === 'practice' && (
             <div className="p-8 text-center flex flex-col items-center gap-4">
@@ -141,14 +140,14 @@ export function Lesson() {
             </div>
           )}
           
-          <div className="mt-8 pt-6 border-t flex justify-end">
+          <div className="mt-10 pt-6 border-t flex justify-end">
              {lesson.status !== 'completed' ? (
-                <Button onClick={handleComplete} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
-                  <CheckCircle className="h-4 w-4" /> Đánh dấu Hoàn thành
+                <Button onClick={handleComplete} size="lg" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+                  <CheckCircle className="h-5 w-5" /> Xác nhận Hoàn thành Bài học
                 </Button>
              ) : (
-                <Button variant="outline" disabled className="gap-2 text-emerald-600 border-emerald-200 bg-emerald-50">
-                  <CheckCircle className="h-4 w-4" /> Đã Hoàn thành
+                <Button variant="outline" size="lg" disabled className="gap-2 text-emerald-600 border-emerald-200 bg-emerald-50 opacity-100">
+                  <CheckCircle className="h-5 w-5" /> Đã Hoàn thành
                 </Button>
              )}
           </div>

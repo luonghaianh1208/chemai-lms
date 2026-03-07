@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, BookOpen, BarChart3, Plus, UserCircle, CheckCircle, Pencil, X, Trash2, LayoutDashboard } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { Users, BookOpen, BarChart3, Plus, UserCircle, CheckCircle, Pencil, X, Trash2, LayoutDashboard, UploadCloud, Download, FileText, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Storage } from "@/lib/storage";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -30,6 +31,13 @@ export function TeacherDashboard() {
   
   // Edit State
   const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
+  const [editingStudentData, setEditingStudentData] = useState<any>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const ocrInputRef = useRef<HTMLInputElement>(null);
+  const ocrEditInputRef = useRef<HTMLInputElement>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isExtractingEdit, setIsExtractingEdit] = useState(false);
 
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -106,6 +114,115 @@ export function TeacherDashboard() {
       setLessons(Storage.getLessons());
       toast.success("Đã xóa bài giảng thành công!");
     }
+  };
+
+  const handleDownloadSample = () => {
+    const ws = XLSX.utils.json_to_sheet([
+      { "Họ và tên": "Nguyễn Văn A", "Email": "nva@gmail.com", "Lớp": "10A1" },
+      { "Họ và tên": "Trần Thị B", "Email": "ttb@gmail.com", "Lớp": "10A2" }
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Danh_sach_lop");
+    XLSX.writeFile(wb, "Sample_Hoc_Sinh.xlsx");
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        let count = 0;
+        data.forEach((row: any) => {
+          if (row["Họ và tên"] && row["Email"]) {
+            Storage.addStudent({
+              name: row["Họ và tên"],
+              email: row["Email"],
+              grade: row["Lớp"] || "Chưa xếp lớp"
+            });
+            count++;
+          }
+        });
+        
+        setStudents(Storage.getStudents());
+        toast.success(`Đã nhập thành công ${count} học sinh từ Excel!`);
+      } catch (error) {
+        toast.error("Lỗi đọc file Excel. Vui lòng thử lại với file mẫu.");
+      }
+    };
+    reader.readAsBinaryString(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const startEditStudent = (student: any) => {
+    // Only allow edit of real students, not the mock admin test account (id 999)
+    if (student.id === 999) return;
+    setEditingStudentId(student.id);
+    setEditingStudentData({ name: student.name, grade: student.grade });
+  };
+
+  const saveEditStudent = (id: number) => {
+    Storage.updateStudent(id, { name: editingStudentData.name, grade: editingStudentData.grade });
+    setStudents(Storage.getStudents());
+    setEditingStudentId(null);
+    toast.success("Đã cập nhật thông tin học sinh!");
+  };
+
+  const handleExtractTheory = async (e: React.ChangeEvent<HTMLInputElement>, isEditMode: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("File quá lớn! Vui lòng chọn file dưới 4MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const base64Data = (evt.target?.result as string).split(',')[1];
+        if (isEditMode) setIsExtractingEdit(true);
+        else setIsExtracting(true);
+
+        const response = await fetch('/.netlify/functions/extract-theory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base64Data,
+            mimeType: file.type
+          })
+        });
+
+        if (!response.ok) throw new Error("API Error");
+
+        const data = await response.json();
+        
+        if (isEditMode) {
+          setEditingLesson(prev => ({ ...prev, theoryContent: (prev.theoryContent ? prev.theoryContent + '\n\n' : '') + data.extractedText }));
+        } else {
+          setTheoryContent(prev => (prev ? prev + '\n\n' : '') + data.extractedText);
+        }
+        
+        toast.success("Đã trích xuất nội dung thành công!");
+      } catch (error) {
+        toast.error("Lỗi trích xuất AI. Vui lòng kiểm tra lại file của bạn.");
+      } finally {
+        if (isEditMode) setIsExtractingEdit(false);
+        else setIsExtracting(false);
+        
+        // Reset inputs
+        if (ocrInputRef.current) ocrInputRef.current.value = "";
+        if (ocrEditInputRef.current) ocrEditInputRef.current.value = "";
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -209,7 +326,14 @@ export function TeacherDashboard() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Nội dung Lý thuyết trọng tâm</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Nội dung Lý thuyết trọng tâm</label>
+                      <input type="file" ref={ocrInputRef} accept="image/*,application/pdf" className="hidden" onChange={(e) => handleExtractTheory(e, false)} />
+                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => ocrInputRef.current?.click()} disabled={isExtracting}>
+                        {isExtracting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1 text-indigo-600" />}
+                        {isExtracting ? "Đang quét..." : "Trích xuất từ Ảnh/PDF"}
+                      </Button>
+                    </div>
                     <textarea 
                       className="flex w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 min-h-[140px]"
                       value={theoryContent}
@@ -287,28 +411,74 @@ export function TeacherDashboard() {
 
       {(activeTab === 'students' || activeTab === 'reports') && (
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Danh sách Học sinh</CardTitle>
-            <CardDescription>Quản lý tiến độ học tập của từng học sinh.</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Danh sách Học sinh</CardTitle>
+              <CardDescription>Quản lý tiến độ học tập và nạp danh sách từ Excel.</CardDescription>
+            </div>
+            {activeTab === 'students' && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleDownloadSample}>
+                  <Download className="h-4 w-4 mr-2" /> File Mẫu
+                </Button>
+                <div>
+                   <input type="file" ref={fileInputRef} accept=".xlsx, .xls" className="hidden" onChange={handleFileUpload} />
+                   <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+                     <UploadCloud className="h-4 w-4 mr-2" /> Import Excel
+                   </Button>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {students.map(student => (
-                <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <UserCircle className="h-8 w-8 text-slate-400" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{student.name} <span className="text-slate-500 font-normal">({student.grade})</span></p>
-                      <p className="text-xs text-slate-500">{student.email}</p>
-                    </div>
+                <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50 relative group">
+                  <div className="flex items-center gap-3 w-full max-w-[60%]">
+                    <UserCircle className="h-8 w-8 text-slate-400 shrink-0" />
+                    {editingStudentId === student.id ? (
+                      <div className="flex flex-col gap-2 w-full">
+                        <Input 
+                          value={editingStudentData.name} 
+                          onChange={(e) => setEditingStudentData({...editingStudentData, name: e.target.value})}
+                          className="h-7 text-sm"
+                        />
+                        <Input 
+                          value={editingStudentData.grade} 
+                          onChange={(e) => setEditingStudentData({...editingStudentData, grade: e.target.value})}
+                          className="h-7 text-xs"
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" className="h-6 text-[10px]" onClick={() => saveEditStudent(student.id)}>Lưu</Button>
+                          <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setEditingStudentId(null)}>Hủy</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full">
+                        <p className="text-sm font-medium text-slate-900 truncate">
+                          {student.name} <span className="text-slate-500 font-normal">({student.grade})</span>
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">{student.email}</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right">
                       <p className="text-sm font-bold text-indigo-600">{student.score}đ</p>
                       <Badge variant={student.status === 'active' ? 'default' : 'secondary'} className="text-[10px]">
                         {student.status === 'active' ? 'Đang học' : 'Vắng mặt'}
                       </Badge>
                     </div>
+                    {student.id !== 999 && editingStudentId !== student.id && activeTab === 'students' && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 ml-2" 
+                        onClick={() => startEditStudent(student)}
+                      >
+                        <Pencil className="h-4 w-4 text-slate-400 hover:text-indigo-600" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -368,7 +538,14 @@ export function TeacherDashboard() {
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Nội dung Lý thuyết trọng tâm</label>
+                      <div className="flex items-center justify-between">
+                         <label className="text-sm font-medium">Nội dung Lý thuyết trọng tâm</label>
+                         <input type="file" ref={ocrEditInputRef} accept="image/*,application/pdf" className="hidden" onChange={(e) => handleExtractTheory(e, true)} />
+                         <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => ocrEditInputRef.current?.click()} disabled={isExtractingEdit}>
+                           {isExtractingEdit ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1 text-indigo-600" />}
+                           {isExtractingEdit ? "Đang quét..." : "Trích xuất từ Ảnh/PDF"}
+                         </Button>
+                      </div>
                       <textarea 
                         className="flex w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600 min-h-[140px]"
                         value={editingLesson.theoryContent}
