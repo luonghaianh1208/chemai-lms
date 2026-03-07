@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -20,104 +20,94 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Check localStorage synchronously - Supabase stores session here
-const STORAGE_KEY = `sb-vaabpnxwmqeonvuvvirx-auth-token`;
-function hasStoredSession(): boolean {
+// --- Helpers ---
+
+/** Build a minimal profile instantly from Auth JWT metadata — no DB query needed */
+function buildProfileFromUser(user: User): any {
+  return {
+    auth_id: user.id,
+    email: user.email,
+    full_name: user.user_metadata?.full_name || user.email || 'Người dùng',
+    role: user.user_metadata?.role || 'student',
+    // Default to 'active' for teachers, 'pending' for students
+    // This will be updated once the background DB fetch completes
+    status: user.user_metadata?.role === 'teacher' ? 'active' : 'pending',
+    overall_progress: 0,
+  };
+}
+
+/** Enrich profile with real data from public.users (status, progress, etc.) - runs in background */
+async function fetchDBProfile(authId: string) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    return !!(parsed?.access_token);
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_id', authId)
+      .maybeSingle();
+    return data ?? null;
   } catch {
-    return false;
+    return null;
   }
 }
+
+// ---
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
-  // Only show loading spinner if there's an existing session to restore
-  const [isLoading, setIsLoading] = useState(hasStoredSession());
-  const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // isLoading only true on initial mount to restore existing session
+  const [isLoading, setIsLoading] = useState(true);
 
-  const clearSafety = () => {
-    if (safetyTimer.current) {
-      clearTimeout(safetyTimer.current);
-      safetyTimer.current = null;
-    }
-  };
-
-  const startSafety = () => {
-    clearSafety();
-    // After 5 seconds max, stop loading no matter what
-    safetyTimer.current = setTimeout(() => {
-      setIsLoading(false);
-    }, 5000);
-  };
-
-  // Fetch user profile from public.users using auth_id
-  const fetchProfile = async (authId: string) => {
-    try {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_id', authId)
-        .maybeSingle();
-      setProfile(data ?? null);
-    } catch (err) {
-      console.error('fetchProfile error:', err);
+  const applyUser = (u: User | null) => {
+    if (!u) {
       setProfile(null);
-    } finally {
-      clearSafety();
-      setIsLoading(false);
+      return;
     }
+    // Step 1: set profile instantly from JWT metadata — zero wait
+    const instant = buildProfileFromUser(u);
+    setProfile(instant);
+
+    // Step 2: enrich from DB in background
+    fetchDBProfile(u.id).then((dbData) => {
+      if (dbData) {
+        setProfile(dbData);
+      }
+    });
   };
 
   useEffect(() => {
-    // 1. Restore existing session if any
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        startSafety();
-        fetchProfile(s.user.id);
-      } else {
-        // No session → show login immediately, no spinner
+    // On mount: restore existing session from localStorage (Supabase does this automatically)
+    supabase.auth.getSession()
+      .then(({ data: { session: s } }) => {
+        setSession(s);
+        setUser(s?.user ?? null);
+        applyUser(s?.user ?? null);
+      })
+      .catch(() => {
+        // If getSession fails, just skip — user will need to log in
+      })
+      .finally(() => {
         setIsLoading(false);
-      }
-    }).catch(() => {
-      setIsLoading(false);
-    });
+      });
 
-    // 2. Listen to future auth state changes (login / logout)
+    // Listen to login/logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      (_event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
-
-        if (newSession?.user) {
-          // User just logged in — show loading while we fetch their profile
-          setIsLoading(true);
-          startSafety();
-          await fetchProfile(newSession.user.id);
-        } else {
-          // User logged out — clear everything, show login page immediately
-          setProfile(null);
-          clearSafety();
-          setIsLoading(false);
-        }
+        applyUser(newSession?.user ?? null);
       }
     );
 
     return () => {
-      clearSafety();
       subscription.unsubscribe();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signOut = async () => {
+    // Clear state first so UI responds immediately
     setProfile(null);
     setSession(null);
     setUser(null);
