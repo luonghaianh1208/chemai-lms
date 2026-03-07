@@ -3,15 +3,26 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { AITutorChat } from "../ai/AITutorChat";
 import { Toaster } from "sonner";
+import { useState, useEffect } from "react";
 
 export function Layout() {
+  const [isPractice, setIsPractice] = useState(false);
+
+  useEffect(() => {
+    const handlePracticeState = (e: any) => {
+      setIsPractice(e.detail.isPractice);
+    };
+    window.addEventListener('practice-state', handlePracticeState);
+    return () => window.removeEventListener('practice-state', handlePracticeState);
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar />
+      {!isPractice && <Sidebar />}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
+        {!isPractice && <Header />}
         <main className="flex-1 overflow-y-auto flex flex-col">
-          <div className="flex-1 p-6">
+          <div className={`flex-1 ${isPractice ? 'p-2 md:p-8 bg-slate-50' : 'p-6'}`}>
             <Outlet />
           </div>
           <footer className="w-full text-center py-4 text-xs text-slate-400 bg-slate-100 border-t border-slate-200 mt-auto">

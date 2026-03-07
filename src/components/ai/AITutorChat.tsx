@@ -16,6 +16,8 @@ export function AITutorChat() {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [practiceMode, setPracticeMode] = useState(false);
+  const [practiceQueries, setPracticeQueries] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -33,11 +35,36 @@ export function AITutorChat() {
         handleSendExternal(e.detail.message);
       }
     };
+    
+    const handlePracticeState = (e: any) => {
+      setPracticeMode(e.detail.isPractice);
+      if (e.detail.isPractice) {
+        setPracticeQueries(0);
+      }
+    };
+
     window.addEventListener('open-ai-tutor', handleOpenChat as EventListener);
-    return () => window.removeEventListener('open-ai-tutor', handleOpenChat as EventListener);
+    window.addEventListener('practice-state', handlePracticeState as EventListener);
+    
+    return () => {
+       window.removeEventListener('open-ai-tutor', handleOpenChat as EventListener);
+       window.removeEventListener('practice-state', handlePracticeState as EventListener);
+    };
   }, []);
 
+  const getSystemPrefix = () => {
+    return practiceMode 
+      ? `[HỆ THỐNG YÊU CẦU LƯU Ý KHI TRẢ LỜI NGƯỜI DÙNG: HỌC SINH ĐANG LÀM BÀI KIỂM TRA. HÃY ĐÓNG VAI TRỢ GIẢNG NHƯNG CHỈ ĐƯỢC PHÉP GỢI Ý CÁCH LÀM (HOẶC GỢI Ý LÝ THUYẾT). BẠN TUYỆT ĐỐI KHÔNG ĐƯỢC CHO BIẾT TRỰC TIẾP HAY CHỈ RA CHÍNH XÁC ĐÁP ÁN CUỐI CÙNG TRONG SUỐT PHIÊN TRẢ LỜI NÀY.]\n\n` 
+      : "";
+  };
+
   const handleSendExternal = async (userMessage: string) => {
+    if (practiceMode && practiceQueries >= 3) {
+      toast.error("Bạn đã hết 3 lượt hỏi Trợ Giảng trong bài thi này!");
+      return;
+    }
+    if (practiceMode) setPracticeQueries(prev => prev + 1);
+
     setMessages(prev => [...prev, { role: "user", content: userMessage }]);
     setIsTyping(true);
     
@@ -45,7 +72,7 @@ export function AITutorChat() {
       const res = await fetch('/.netlify/functions/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
+        body: JSON.stringify({ message: getSystemPrefix() + userMessage })
       });
       const data = await res.json();
       

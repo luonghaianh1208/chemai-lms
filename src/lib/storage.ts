@@ -173,5 +173,22 @@ export const Storage = {
 
     localStorage.setItem('lessons_data', JSON.stringify(updatedLessons));
     localStorage.setItem('user_data', JSON.stringify(user));
+  },
+
+  getCheatWarnings() {
+    this.initialize();
+    return JSON.parse(localStorage.getItem('cheat_warnings') || '[]');
+  },
+
+  addCheatWarning(lessonTitle: string) {
+    const warnings = this.getCheatWarnings();
+    const user = this.getUser();
+    warnings.unshift({
+       id: Date.now(),
+       studentName: user.name,
+       lessonTitle,
+       timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('cheat_warnings', JSON.stringify(warnings));
   }
 };

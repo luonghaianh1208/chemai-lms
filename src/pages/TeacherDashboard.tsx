@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, BookOpen, BarChart3, Plus, UserCircle, CheckCircle, Pencil, X, Trash2, LayoutDashboard, UploadCloud, Download, FileText, Loader2, Ban } from "lucide-react";
+import { Users, BookOpen, BarChart3, Plus, UserCircle, CheckCircle, Pencil, X, Trash2, LayoutDashboard, UploadCloud, Download, FileText, Loader2, Ban, AlertTriangle } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Storage } from "@/lib/storage";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { CHEMISTRY_CURRICULUM } from "@/lib/curriculum";
 
 const getEmbedUrl = (url: string) => {
   if (!url) return "";
@@ -20,14 +21,16 @@ const getEmbedUrl = (url: string) => {
 export function TeacherDashboard() {
   const [students, setStudents] = useState<any[]>([]);
   const [lessons, setLessons] = useState<any[]>([]);
-  const [newLessonTitle, setNewLessonTitle] = useState("");
+  const [newLessonGrade, setNewLessonGrade] = useState("Lớp 10");
   const [newLessonChapter, setNewLessonChapter] = useState("");
+  const [newLessonTitle, setNewLessonTitle] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [theoryContent, setTheoryContent] = useState("");
   const [mcqCount, setMcqCount] = useState(5);
   const [tfCount, setTfCount] = useState(2);
   const [shortCount, setShortCount] = useState(2);
   const [passingPercentage, setPassingPercentage] = useState(80);
+  const [timeLimit, setTimeLimit] = useState(15);
   const [dueDate, setDueDate] = useState("");
   
   // Edit State
@@ -52,7 +55,14 @@ export function TeacherDashboard() {
   const handleCreateLesson = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLessonTitle || !newLessonChapter) {
-      toast.error("Vui lòng nhập đủ thông tin bài giảng");
+      toast.error("Vui lòng chọn đầy đủ Chương và Bài học");
+      return;
+    }
+    
+    // Anti-duplicate Check
+    const isDuplicate = lessons.some(l => l.chapter === newLessonChapter && l.title === newLessonTitle);
+    if (isDuplicate) {
+      toast.error(`Bài giảng "${newLessonTitle}" đã tồn tại trong ${newLessonChapter}! Hành động bị từ chối.`);
       return;
     }
     const formattedYoutubeUrl = getEmbedUrl(youtubeUrl);
@@ -62,7 +72,7 @@ export function TeacherDashboard() {
       chapter: newLessonChapter,
       theoryContent: theoryContent,
       youtubeUrl: formattedYoutubeUrl,
-      practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount },
+      practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount, timeLimit: timeLimit },
       type: "theory",
       passingPercentage: passingPercentage,
       dueDate: dueDate || null
@@ -76,13 +86,19 @@ export function TeacherDashboard() {
     setTfCount(2);
     setShortCount(2);
     setPassingPercentage(80);
+    setTimeLimit(15);
     setDueDate("");
     toast.success("Tạo bài giảng mới thành công!");
   };
 
   const handleEditClick = (lesson: any) => {
+    const matchedGrade = Object.keys(CHEMISTRY_CURRICULUM).find(grade => 
+      Object.keys(CHEMISTRY_CURRICULUM[grade]).includes(lesson.chapter)
+    ) || "Lớp 10";
+    
     setEditingLesson({
       id: lesson.id,
+      grade: matchedGrade,
       title: lesson.title || "",
       chapter: lesson.chapter || "",
       youtubeUrl: lesson.youtubeUrl || "",
@@ -90,6 +106,7 @@ export function TeacherDashboard() {
       mcqCount: lesson.practiceConfig?.mcq ?? 5,
       tfCount: lesson.practiceConfig?.tf ?? 2,
       shortCount: lesson.practiceConfig?.short ?? 2,
+      timeLimit: lesson.practiceConfig?.timeLimit ?? 15,
       passingPercentage: lesson.passingPercentage ?? 80,
       dueDate: lesson.dueDate || ""
     });
@@ -98,18 +115,28 @@ export function TeacherDashboard() {
   const handleUpdateLesson = (e: React.FormEvent) => {
     e.preventDefault();
     const formattedYoutubeUrl = getEmbedUrl(editingLesson.youtubeUrl);
-    Storage.updateLesson({
-      id: editingLesson.id,
-      title: editingLesson.title,
-      chapter: editingLesson.chapter,
-      theoryContent: editingLesson.theoryContent,
+    
+    // Anti-duplicate Check (ignore self)
+    const isDuplicate = lessons.some(l => l.id !== editingLesson.id && l.chapter === editingLesson.chapter && l.title === editingLesson.title);
+    if (isDuplicate) {
+      toast.error(`Bài giảng "${editingLesson.title}" đã tồn tại trong ${editingLesson.chapter}! Hành động bị từ chối.`);
+      return;
+    }
+
+    const { grade, ...pureLesson } = editingLesson;
+
+    const updated = Storage.updateLesson({
+      ...pureLesson,
       youtubeUrl: formattedYoutubeUrl,
-      practiceConfig: { mcq: editingLesson.mcqCount, tf: editingLesson.tfCount, short: editingLesson.shortCount },
-      passingPercentage: editingLesson.passingPercentage,
-      dueDate: editingLesson.dueDate || null
+      theoryContent: pureLesson.theoryContent,
+      practiceConfig: { 
+        mcq: pureLesson.mcqCount, 
+        tf: pureLesson.tfCount, 
+        short: pureLesson.shortCount, 
+        timeLimit: pureLesson.timeLimit 
+      }
     });
-    setLessons(Storage.getLessons());
-    setEditingLesson(null);
+    setLessons(lessons.map((l: any) => l.id === updated.id ? updated : l));
     toast.success("Cập nhật bài giảng thành công!");
   };
 
@@ -291,6 +318,18 @@ export function TeacherDashboard() {
             <p className="text-xs text-slate-500">Trung bình lớp</p>
           </CardContent>
         </Card>
+        <Card className="hover:border-red-200 transition-colors cursor-pointer">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Báo động Quá hạn</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+               {lessons.filter(l => l.dueDate && new Date(l.dueDate) < new Date() && l.status !== 'completed').length}
+            </div>
+            <p className="text-xs text-slate-500">Bài tập chưa nộp</p>
+          </CardContent>
+        </Card>
       </div>
       )}
 
@@ -307,20 +346,50 @@ export function TeacherDashboard() {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Tên chương</label>
-                    <Input 
-                      value={newLessonChapter} 
-                      onChange={(e) => setNewLessonChapter(e.target.value)} 
-                      placeholder="VD: Chương 4: Oxi hóa" 
-                    />
+                    <label className="text-sm font-medium">Khối Lớp</label>
+                    <select 
+                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                      value={newLessonGrade} 
+                      onChange={(e) => {
+                        setNewLessonGrade(e.target.value);
+                        setNewLessonChapter("");
+                        setNewLessonTitle("");
+                      }}
+                    >
+                      <option value="Lớp 10">Lớp 10</option>
+                      <option value="Lớp 11">Lớp 11</option>
+                      <option value="Lớp 12">Lớp 12</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Tên bài học</label>
-                    <Input 
+                    <label className="text-sm font-medium">Chọn Chương</label>
+                    <select 
+                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                      value={newLessonChapter} 
+                      onChange={(e) => {
+                        setNewLessonChapter(e.target.value);
+                        setNewLessonTitle("");
+                      }}
+                    >
+                      <option value="">-- Chọn Chương --</option>
+                      {Object.keys(CHEMISTRY_CURRICULUM[newLessonGrade] || {}).map(chap => (
+                        <option key={chap} value={chap}>{chap}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Chọn Bài học</label>
+                    <select 
+                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                       value={newLessonTitle} 
-                      onChange={(e) => setNewLessonTitle(e.target.value)} 
-                      placeholder="Tiêu đề bài học..." 
-                    />
+                      onChange={(e) => setNewLessonTitle(e.target.value)}
+                      disabled={!newLessonChapter}
+                    >
+                      <option value="">-- Chọn Bài học --</option>
+                      {(CHEMISTRY_CURRICULUM[newLessonGrade]?.[newLessonChapter] || []).map(lesson => (
+                        <option key={lesson} value={lesson}>{lesson}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Link Youtube (Tùy chọn)</label>
@@ -378,6 +447,10 @@ export function TeacherDashboard() {
                    <div className="flex-1 space-y-1">
                      <label className="text-xs font-medium text-emerald-600">% Điểm đỗ</label>
                      <Input type="number" min="0" max="100" value={passingPercentage} onChange={(e) => setPassingPercentage(parseInt(e.target.value) || 80)} />
+                   </div>
+                   <div className="flex-1 space-y-1">
+                     <label className="text-xs font-medium text-indigo-600">Thời gian (Phút)</label>
+                     <Input type="number" min="1" max="180" value={timeLimit} onChange={(e) => setTimeLimit(parseInt(e.target.value) || 15)} />
                    </div>
                  </div>
               </div>
@@ -542,18 +615,43 @@ export function TeacherDashboard() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Tên chương</label>
-                      <Input 
-                        value={editingLesson.chapter} 
-                        onChange={(e) => setEditingLesson({...editingLesson, chapter: e.target.value})} 
-                      />
+                      <label className="text-sm font-medium">Khối Lớp</label>
+                      <select 
+                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                        value={editingLesson.grade} 
+                        onChange={(e) => setEditingLesson({...editingLesson, grade: e.target.value, chapter: "", title: ""})}
+                      >
+                        <option value="Lớp 10">Lớp 10</option>
+                        <option value="Lớp 11">Lớp 11</option>
+                        <option value="Lớp 12">Lớp 12</option>
+                      </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Tên bài học</label>
-                      <Input 
+                      <label className="text-sm font-medium">Chọn Chương</label>
+                      <select 
+                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                        value={editingLesson.chapter} 
+                        onChange={(e) => setEditingLesson({...editingLesson, chapter: e.target.value, title: ""})}
+                      >
+                        <option value="">-- Chọn Chương --</option>
+                        {Object.keys(CHEMISTRY_CURRICULUM[editingLesson.grade] || {}).map(chap => (
+                          <option key={chap} value={chap}>{chap}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Chọn Bài học</label>
+                      <select 
+                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                         value={editingLesson.title} 
-                        onChange={(e) => setEditingLesson({...editingLesson, title: e.target.value})} 
-                      />
+                        onChange={(e) => setEditingLesson({...editingLesson, title: e.target.value})}
+                        disabled={!editingLesson.chapter}
+                      >
+                        <option value="">-- Chọn Bài học --</option>
+                        {(CHEMISTRY_CURRICULUM[editingLesson.grade]?.[editingLesson.chapter] || []).map(lesson => (
+                          <option key={lesson} value={lesson}>{lesson}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Link Youtube</label>
@@ -609,6 +707,10 @@ export function TeacherDashboard() {
                      <div className="flex-1 space-y-1">
                        <label className="text-xs font-medium text-emerald-600">% Điểm đỗ</label>
                        <Input type="number" min="0" max="100" value={editingLesson.passingPercentage} onChange={(e) => setEditingLesson({...editingLesson, passingPercentage: parseInt(e.target.value) || 80})} />
+                     </div>
+                     <div className="flex-1 space-y-1">
+                       <label className="text-xs font-medium text-indigo-600">Thời gian (Phút)</label>
+                       <Input type="number" min="1" max="180" value={editingLesson.timeLimit} onChange={(e) => setEditingLesson({...editingLesson, timeLimit: parseInt(e.target.value) || 15})} />
                      </div>
                    </div>
                 </div>

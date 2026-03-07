@@ -19,25 +19,47 @@ export function Header() {
       const notifs: any[] = [];
       const now = new Date().getTime();
 
-      allLessons.forEach((lesson: any) => {
-        // Due Date logic
-        if (lesson.dueDate && lesson.status !== 'completed') {
-          const dueTime = new Date(lesson.dueDate).getTime();
-          const hoursLeft = (dueTime - now) / (1000 * 60 * 60);
+      if (role === 'teacher') {
+         const cheatWarnings = Storage.getCheatWarnings() || [];
+         cheatWarnings.forEach((warning: any) => {
+            notifs.push({
+               type: 'critical', 
+               title: 'Cảnh báo Gian lận 🚨', 
+               message: `Học sinh ${warning.studentName} đã thoát màn hình khi thi bài "${warning.lessonTitle}".`, 
+               time: new Date(warning.timestamp) 
+            });
+         });
+         
+         const completedLessons = allLessons.filter((l: any) => l.status === 'completed');
+         completedLessons.forEach((lesson: any) => {
+            notifs.push({
+               type: 'success', 
+               title: 'Học sinh nộp bài', 
+               message: `1 học sinh vừa nộp bài "${lesson.title}" với ${lesson.score} điểm.`, 
+               time: new Date() 
+            });
+         });
+      } else {
+        allLessons.forEach((lesson: any) => {
+          // Due Date logic
+          if (lesson.dueDate && lesson.status !== 'completed') {
+            const dueTime = new Date(lesson.dueDate).getTime();
+            const hoursLeft = (dueTime - now) / (1000 * 60 * 60);
           
-          if (hoursLeft < 0) {
-            notifs.push({ type: 'overdue', title: 'Quá hạn bài tập', message: `Bài tập "${lesson.title}" đã quá hạn!`, time: new Date(lesson.dueDate) });
-          } else if (hoursLeft <= 24) {
-            const isCritical = hoursLeft <= 12;
-            notifs.push({ type: isCritical ? 'critical' : 'warning', title: 'Sắp hết hạn', message: `Bài tập "${lesson.title}" sắp hết hạn sau ${Math.ceil(hoursLeft)} giờ nữa!`, time: new Date() });
+            if (hoursLeft < 0) {
+              notifs.push({ type: 'overdue', title: 'Quá hạn bài tập', message: `Bài tập "${lesson.title}" đã quá hạn!`, time: new Date(lesson.dueDate) });
+            } else if (hoursLeft <= 24) {
+              const isCritical = hoursLeft <= 12;
+              notifs.push({ type: isCritical ? 'critical' : 'warning', title: 'Sắp hết hạn', message: `Bài tập "${lesson.title}" sắp hết hạn sau ${Math.ceil(hoursLeft)} giờ nữa!`, time: new Date() });
+            }
           }
-        }
         
-        // Completion logic
-        if (lesson.status === 'completed' && lesson.score > 0) {
-          notifs.push({ type: 'success', title: 'Hoàn thành bài học', message: `Bạn đã hoàn thành "${lesson.title}" với ${lesson.score} điểm.`, time: new Date() });
-        }
-      });
+          // Completion logic
+          if (lesson.status === 'completed' && lesson.score > 0) {
+            notifs.push({ type: 'success', title: 'Hoàn thành bài học', message: `Bạn đã hoàn thành "${lesson.title}" với ${lesson.score} điểm.`, time: new Date() });
+          }
+        });
+      }
       
       // Sort to show warnings/overdue first, then success
       notifs.sort((a, b) => {

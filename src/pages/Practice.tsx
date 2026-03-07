@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, CheckCircle2, XCircle, AlertCircle, Loader2, BookOpen, ChevronRight, Clock, AlertTriangle } from "lucide-react";
+import { Sparkles, CheckCircle2, XCircle, AlertCircle, Loader2, BookOpen, ChevronRight, ChevronDown, Clock, AlertTriangle, Play } from "lucide-react";
 import { Storage } from "@/lib/storage";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -40,6 +40,11 @@ export function Practice() {
   const [correctCount, setCorrectCount] = useState(0);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   
+  const [isPracticeStarted, setIsPracticeStarted] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [isTimeUp, setIsTimeUp] = useState(false);
+  const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,7 +53,49 @@ export function Practice() {
     setAvailableLessons(lessons);
   }, []);
 
-  const startPractice = async (lesson: any) => {
+  const handleSelectLesson = (lesson: any) => {
+    setSelectedLesson(lesson);
+    setIsPracticeStarted(false);
+    setIsTimeUp(false);
+    setTimeRemaining((lesson.practiceConfig?.timeLimit || 15) * 60);
+  };
+
+  const confirmStartPractice = () => {
+    setIsPracticeStarted(true);
+    fetchQuestions(selectedLesson);
+    window.dispatchEvent(new CustomEvent('practice-state', { detail: { isPractice: true } }));
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isPracticeStarted && !loading && timeRemaining !== null && timeRemaining > 0 && !isTimeUp) {
+      interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev && prev <= 1) {
+            setIsTimeUp(true);
+            toast.error("Đã hết thời gian làm bài! Tự động nộp bài.");
+            handleNext(true); // Auto submit
+            return 0;
+          }
+          return prev ? prev - 1 : 0;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isPracticeStarted, loading, timeRemaining, isTimeUp]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isPracticeStarted && !isTimeUp && timeRemaining && timeRemaining > 0) {
+        toast.error("CẢNH BÁO: Không được phép chuyển Tab hoặc thoát ra ngoài khi đang làm bài thi!", { duration: 6000 });
+        if (selectedLesson?.title) Storage.addCheatWarning(selectedLesson.title);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isPracticeStarted, isTimeUp, timeRemaining, selectedLesson]);
+
+  const fetchQuestions = async (lesson: any) => {
     setSelectedLesson(lesson);
     setLoading(true);
     setQuestions([]);
@@ -117,6 +164,8 @@ export function Practice() {
 
   const handleBackToSelection = () => {
     setSelectedLesson(null);
+    setIsPracticeStarted(false);
+    window.dispatchEvent(new CustomEvent('practice-state', { detail: { isPractice: false } }));
   };
 
   const question = questions[currentIndex];
@@ -139,8 +188,8 @@ export function Practice() {
     }
   };
 
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
+  const handleNext = (forceSubmit = false) => {
+    if (currentIndex < questions.length - 1 && !forceSubmit) {
       setCurrentIndex(prev => prev + 1);
       setSelectedAnswer(null);
       setIsSubmitted(false);
@@ -148,9 +197,20 @@ export function Practice() {
     } else {
       const score = Math.round((correctCount / questions.length) * 100) || 0;
       Storage.updateProgress(selectedLesson.id, 'completed', score);
-      toast.success(`Hoàn thành xuất sắc ${selectedLesson?.title}! Bạn đạt ${score}/100 điểm.`);
+      window.dispatchEvent(new CustomEvent('practice-state', { detail: { isPractice: false } }));
+      if (forceSubmit) {
+        toast.warning(`Hết giờ! Tự động nộp bài. Bạn đạt ${score}/100 điểm.`);
+      } else {
+        toast.success(`Hoàn thành xuất sắc ${selectedLesson?.title}! Bạn đạt ${score}/100 điểm.`);
+      }
       navigate('/analytics');
     }
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   // ----- UI: LESSON SELECTION -----
@@ -173,14 +233,22 @@ export function Practice() {
               acc[curr.chapter].push(curr);
               return acc;
             }, {} as Record<string, any[]>)).map(([chapter, lessonsInChapter]) => (
-              <div key={chapter} className="space-y-4">
-                <h2 className="text-xl font-bold border-b pb-2 text-indigo-900 border-indigo-100 flex items-center gap-2">
-                   <BookOpen className="h-5 w-5 text-indigo-500" />
-                   {chapter}
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {lessonsInChapter.map((lesson: any) => (
-                    <Card key={lesson.id} className="hover:border-indigo-300 transition-colors cursor-pointer" onClick={() => startPractice(lesson)}>
+              <div key={chapter} className="space-y-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <button 
+                   onClick={() => setExpandedChapters(prev => ({...prev, [chapter]: !prev[chapter]}))}
+                   className="w-full flex items-center justify-between text-left group"
+                >
+                   <h2 className="text-xl font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-indigo-500" />
+                      {chapter} <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2">{lessonsInChapter.length} bài</span>
+                   </h2>
+                   {expandedChapters[chapter] ? <ChevronDown className="h-5 w-5 text-slate-400 group-hover:text-indigo-500" /> : <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-indigo-500" />}
+                </button>
+                
+                {expandedChapters[chapter] && (
+                  <div className="grid gap-4 md:grid-cols-2 pt-4 border-t border-slate-100 mt-2">
+                    {lessonsInChapter.map((lesson: any) => (
+                    <Card key={lesson.id} className="hover:border-indigo-300 transition-colors cursor-pointer" onClick={() => handleSelectLesson(lesson)}>
                       <CardHeader className="pb-3">
                         <div className="flex justify-between items-start">
                           <Badge variant="secondary" className="bg-indigo-50 text-indigo-700">{lesson.chapter}</Badge>
@@ -197,7 +265,7 @@ export function Practice() {
                       </CardHeader>
                       <CardContent className="pb-4">
                         <p className="text-sm text-slate-600 line-clamp-2">
-                          Cấu hình sinh AI: {lesson.practiceConfig?.mcq || 0} Trắc nghiệm, {lesson.practiceConfig?.tf || 0} Đúng/Sai, {lesson.practiceConfig?.short || 0} Trả lời ngắn.
+                          {lesson.practiceConfig?.mcq || 0} Trắc nghiệm, {lesson.practiceConfig?.tf || 0} Đúng/Sai, {lesson.practiceConfig?.short || 0} Trả lời ngắn.
                         </p>
                       </CardContent>
                       <CardFooter className="pt-0 border-t mt-4 flex justify-between items-center py-3 bg-slate-50 rounded-b-xl">
@@ -206,11 +274,61 @@ export function Practice() {
                       </CardFooter>
                     </Card>
                   ))}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
+      </div>
+    );
+  }
+
+  // ----- UI: PRE-PRACTICE SCREEN -----
+  if (selectedLesson && !isPracticeStarted) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+        <div className="flex items-center justify-between border-b pb-4">
+          <Button variant="link" onClick={handleBackToSelection} className="h-auto p-0 text-slate-500 hover:text-indigo-600">
+            &larr; Quay lại
+          </Button>
+          <h1 className="text-xl font-bold text-slate-900">{selectedLesson.title}</h1>
+        </div>
+        <Card className="border-2 border-indigo-100 shadow-md">
+          <CardHeader className="bg-indigo-50/50">
+             <CardTitle className="flex justify-center text-2xl text-indigo-900 py-4">Chuẩn bị Kiểm tra</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 py-6 text-center">
+             <div className="flex justify-center gap-8 text-slate-600">
+                <div className="space-y-1">
+                   <p className="text-xs uppercase font-bold tracking-wider opacity-70">Thời gian</p>
+                   <p className="text-2xl font-bold flex items-center justify-center gap-2"><Clock className="h-6 w-6 text-indigo-500" /> {selectedLesson.practiceConfig?.timeLimit || 15} Phút</p>
+                </div>
+                <div className="space-y-1">
+                   <p className="text-xs uppercase font-bold tracking-wider opacity-70">Số câu hỏi</p>
+                   <p className="text-2xl font-bold text-slate-900">{
+                     (selectedLesson.practiceConfig?.mcq || 0) + 
+                     (selectedLesson.practiceConfig?.tf || 0) + 
+                     (selectedLesson.practiceConfig?.short || 0)
+                   } Câu</p>
+                </div>
+             </div>
+             
+             <div className="bg-red-50 text-red-800 p-4 rounded-xl text-sm text-left mx-auto max-w-lg space-y-2 border border-red-100">
+                <p className="font-bold flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Nội quy phòng thi:</p>
+                <ul className="list-disc pl-6 space-y-1 opacity-90">
+                   <li>Ngay khi bấm bắt đầu, đồng hồ sẽ đếm ngược liên tục.</li>
+                   <li>Hệ thống <b>không cho phép chuyển Tab</b> trình duyệt hoặc thoát khỏi màn hình.</li>
+                   <li>Chỉ được sử dụng Trợ giảng AI tối đa <b>3 lượt</b> và AI chỉ đưa ra gợi ý, không nhắc đáp án.</li>
+                </ul>
+             </div>
+          </CardContent>
+          <CardFooter className="justify-center py-6 bg-slate-50">
+             <Button size="lg" className="h-14 px-8 text-lg bg-indigo-600 hover:bg-indigo-700 w-full max-w-sm shadow-xl" onClick={confirmStartPractice}>
+               <Play className="h-5 w-5 mr-3" /> BẮT ĐẦU LÀM BÀI
+             </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }
@@ -350,9 +468,16 @@ export function Practice() {
             <CardTitle className="text-lg flex items-center gap-2">
               Câu hỏi {currentIndex + 1}/{questions.length}
             </CardTitle>
-            <span className="text-sm font-medium text-emerald-600 flex items-center gap-1.5 bg-emerald-100/50 px-2 py-1 rounded-full border border-emerald-200">
-              <Sparkles className="h-4 w-4" /> AI Generated
-            </span>
+            <div className="flex items-center gap-4">
+               {timeRemaining !== null && (
+                  <span className={`text-sm font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${timeRemaining < 60 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-white text-slate-700 border-slate-200'}`}>
+                     <Clock className="h-4 w-4" /> {formatTime(timeRemaining)}
+                  </span>
+               )}
+               <span className="text-sm font-medium text-emerald-600 flex items-center gap-1.5 bg-emerald-100/50 px-2 py-1 rounded-full border border-emerald-200">
+                 <Sparkles className="h-4 w-4" /> AI Generated
+               </span>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-6 space-y-8">
