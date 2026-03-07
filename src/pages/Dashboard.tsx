@@ -26,10 +26,25 @@ export function Dashboard() {
       const cAvg = compCount > 0 ? Math.round(compLessons.reduce((acc: any, l: any) => acc + (l.score || 0), 0) / compCount) : 0;
       
       if (compCount > 0) {
+        const cacheStore = localStorage.getItem('ai_insight_cache');
+        if (cacheStore) {
+           const cache = JSON.parse(cacheStore);
+           if (cache.compCount === compCount && cache.cAvg === cAvg && cache.text) {
+              setAiAnalysis(cache.text);
+              return; // Dữ liệu không đổi, dùng cache luôn
+           }
+        }
+
+        const nextLessons = dbLessons.filter((l: any) => l.status !== 'completed').map((l: any) => l.title).join(', ');
+        const prompt = `Dựa trên dữ liệu học tập: Điểm trung bình là ${cAvg}/100, hoàn thành ${compCount} bài. Các bài học TIẾP THEO trong chương trình gồm: ${nextLessons || 'Đã hết bài'}. Đóng vai là gia sư AI, phân tích thành quả và đưa ra 1 lời khuyên ngắn 2-3 câu. NẾU CÓ KHUYÊN HỌC BÀI TIẾP THEO, TUYỆT ĐỐI CHỈ ĐƯỢC CHỌN TRONG DANH SÁCH BÀI TIẾP THEO MÀ TÔI VỪA CUNG CẤP.`;
+
         fetch('/.netlify/functions/chat', {
           method: 'POST',
-          body: JSON.stringify({ message: `Dựa trên dữ liệu học tập của học viên: Điểm TB là ${cAvg}/100, học viên đã hoàn thành ${compCount} bài học (gồm: ${compLessons.map((l:any)=>l.title).join(', ')}). Đóng vai là gia sư AI, phân tích thành quả và đưa ra 1 lời khuyên ngắn 2-3 câu.` })
-        }).then(r => r.json()).then(res => setAiAnalysis(res.reply)).catch(() => setAiAnalysis("Lỗi khi tải phân tích từ AI."));
+          body: JSON.stringify({ message: prompt })
+        }).then(r => r.json()).then(res => {
+           setAiAnalysis(res.reply);
+           localStorage.setItem('ai_insight_cache', JSON.stringify({ compCount, cAvg, text: res.reply }));
+        }).catch(() => setAiAnalysis("Lỗi khi tải phân tích từ AI."));
       } else {
         setAiAnalysis("Bạn chưa hoàn thành bài học nào. Hãy học bài đầu tiên để AI đánh giá nhé!");
       }

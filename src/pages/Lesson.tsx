@@ -49,8 +49,14 @@ export function Lesson() {
   const completedInChapter = chapterLessons.filter(l => l.status === 'completed').length;
   const chapterProgress = chapterLessons.length ? Math.round((completedInChapter / chapterLessons.length) * 100) : 0;
 
+  const groupedLessons = allLessons.reduce((acc, curr) => {
+    if (!acc[curr.chapter]) acc[curr.chapter] = [];
+    acc[curr.chapter].push(curr);
+    return acc;
+  }, {} as Record<string, any[]>);
+
   return (
-    <div className="flex h-full gap-6">
+    <div className="flex items-start gap-6">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col space-y-4">
         <div className="flex items-center justify-between">
@@ -155,30 +161,33 @@ export function Lesson() {
       </div>
 
       {/* Sidebar - Lesson Navigation */}
-      <div className="w-80 flex flex-col gap-4">
+      <div className="w-80 flex flex-col gap-4 shrink-0 sticky top-0 max-h-[calc(100vh-48px)] overflow-y-auto pr-1 pb-4 custom-scrollbar">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Mục lục Chương</CardTitle>
-            <div className="flex items-center gap-2 mt-2">
-              <Progress value={chapterProgress} className="flex-1" />
-              <span className="text-xs font-medium text-slate-500">{chapterProgress}%</span>
-            </div>
+          <CardHeader className="pb-3 border-b border-slate-100">
+            <CardTitle className="text-base">Mục lục Khóa Học</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {chapterLessons.map((l, idx) => (
-              <div 
-                key={l.id} 
-                onClick={() => navigate(`/lessons?id=${l.id}`)}
-                className={`flex items-center gap-3 p-2 rounded-md text-sm cursor-pointer transition-colors
-                  ${l.id === lesson.id ? 'bg-indigo-50 font-medium text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}
-                `}
-              >
-                {l.status === 'completed' ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <PlayCircle className={`h-4 w-4 ${l.id === lesson.id ? 'text-indigo-600' : 'text-slate-400'}`} />
-                )}
-                {idx + 1}. {l.title}
+          <CardContent className="space-y-4 pt-4">
+            {Object.entries(groupedLessons).map(([chapter, lessonsInChapter]) => (
+              <div key={chapter} className="space-y-2">
+                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide px-2">{chapter}</h4>
+                <div className="space-y-1">
+                  {lessonsInChapter.map((l: any, idx: number) => (
+                    <div 
+                      key={l.id} 
+                      onClick={() => navigate(`/lessons?id=${l.id}`)}
+                      className={`flex items-start gap-3 p-2 rounded-md text-sm cursor-pointer transition-colors
+                        ${l.id === lesson.id ? 'bg-indigo-50 font-medium text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}
+                      `}
+                    >
+                      {l.status === 'completed' ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      ) : (
+                        <PlayCircle className={`h-4 w-4 shrink-0 mt-0.5 ${l.id === lesson.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                      )}
+                      <span className="leading-tight">{idx + 1}. {l.title}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </CardContent>
