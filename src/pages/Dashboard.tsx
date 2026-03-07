@@ -7,21 +7,26 @@ import { useState, useEffect } from "react";
 import { Storage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
 
 export function Dashboard() {
   const [data, setData] = useState<any>(null);
   const navigate = useNavigate();
+  const { profile } = useAuth();
 
   const [aiAnalysis, setAiAnalysis] = useState<string>("Đang phân tích dữ liệu học tập của bạn...");
 
   useEffect(() => {
     const load = async () => {
-      const dbLessons = await Storage.getLessons();
+      // Filter lessons by student's grade (from profile)
+      const studentGrade = profile?.grade || '';
+      const dbLessons = await Storage.getLessons(studentGrade || undefined);
       const user = await Storage.getUser();
       setData({
         user,
         lessonsProgress: dbLessons
       });
+
       
       const compLessons = dbLessons.filter((l: any) => l.status === 'completed');
       const compCount = compLessons.length;

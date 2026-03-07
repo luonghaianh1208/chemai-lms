@@ -37,11 +37,6 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode,
     );
   }
 
-  // Pending approval for students
-  if (profile.status === 'pending' && profile.role === 'student') {
-    return <PendingApproval />;
-  }
-
   // Role based access control
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
     return <Navigate to="/" replace />;

@@ -6,11 +6,13 @@ const mapLesson = (l: any) => l ? {
   title: l.title,
   description: l.description,
   chapter: l.chapter,
+  grade: l.grade || '',
   theoryContent: l.theory_content,
   youtubeUrl: l.youtube_url,
   practiceConfig: l.practice_config,
   type: l.type,
   passingPercentage: l.passing_percentage,
+  maxAttempts: l.max_attempts ?? null,
   order_index: l.order_index,
   dueDate: l.due_date,
   updatedAt: l.updated_at
@@ -20,7 +22,7 @@ const mapStudent = (s: any) => s ? {
   id: s.id,
   name: s.full_name,
   email: s.email,
-  grade: "Chưa phân lớp", // For demo
+  grade: s.grade || 'Chưa phân khối',
   score: s.overall_progress || 0,
   status: s.status
 } : null;
@@ -41,8 +43,18 @@ export const Storage = {
     return mapStudent(newUser);
   },
 
-  async getLessons() {
-    const { data } = await supabase.from('lessons').select('*').order('order_index', { ascending: true });
+  // Get lessons filtered by grade (pass grade='10'|'11'|'12' or omit for all)
+  async getLessons(grade?: string) {
+    let query = supabase.from('lessons').select('*').order('order_index', { ascending: true });
+    if (grade) {
+      // Show lessons that match grade OR lessons with no grade set (shared)
+      query = supabase
+        .from('lessons')
+        .select('*')
+        .or(`grade.eq.${grade},grade.is.null,grade.eq.`)
+        .order('order_index', { ascending: true });
+    }
+    const { data } = await query;
     return (data || []).map(mapLesson);
   },
 
@@ -59,11 +71,13 @@ export const Storage = {
       title: lessonData.title,
       description: lessonData.description,
       chapter: lessonData.chapter,
+      grade: lessonData.grade || null,
       theory_content: lessonData.theoryContent,
       youtube_url: lessonData.youtubeUrl,
       practice_config: lessonData.practiceConfig || {},
       type: lessonData.type || 'theory',
       passing_percentage: lessonData.passingPercentage || 80,
+      max_attempts: lessonData.maxAttempts ?? null,
       order_index: newOrder,
       due_date: lessonData.dueDate || null,
       updated_at: new Date().toISOString()
@@ -76,9 +90,11 @@ export const Storage = {
   async updateLesson(l: any) {
     const dbPayload = {
       title: l.title, description: l.description, chapter: l.chapter,
+      grade: l.grade || null,
       theory_content: l.theoryContent, youtube_url: l.youtubeUrl,
       practice_config: l.practiceConfig, type: l.type,
       passing_percentage: l.passingPercentage, order_index: l.order_index,
+      max_attempts: l.maxAttempts ?? null,
       due_date: l.dueDate, updated_at: new Date().toISOString()
     };
     const { data } = await supabase.from('lessons').update(dbPayload).eq('id', l.id).select().single();
@@ -148,8 +164,35 @@ export const Storage = {
     }
   },
 
+  // Get how many times current student attempted a lesson's practice
+  async getAttemptCount(lessonId: number): Promise<number> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 0;
+    const { data: userRaw } = await supabase.from('users').select('id').eq('auth_id', user.id).maybeSingle();
+    if (!userRaw) return 0;
+    const { data } = await supabase.from('progress').select('attempt_count').eq('student_id', userRaw.id).eq('lesson_id', lessonId).maybeSingle();
+    return data?.attempt_count || 0;
+  },
+
+  // Increment attempt count when student starts a practice
+  async incrementAttemptCount(lessonId: number) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: userRaw } = await supabase.from('users').select('id').eq('auth_id', user.id).maybeSingle();
+    if (!userRaw) return;
+    
+    const { data: prog } = await supabase.from('progress').select('id, attempt_count').eq('student_id', userRaw.id).eq('lesson_id', lessonId).maybeSingle();
+    if (prog) {
+      await supabase.from('progress').update({ attempt_count: (prog.attempt_count || 0) + 1 }).eq('id', prog.id);
+    } else {
+      await supabase.from('progress').insert({ student_id: userRaw.id, lesson_id: lessonId, status: 'in_progress', score: 0, attempt_count: 1 });
+    }
+  },
+
   async getProgress() {
-    const { data: userRaw } = await supabase.from('users').select('id').eq('role', 'student').limit(1).single();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    const { data: userRaw } = await supabase.from('users').select('id').eq('auth_id', user.id).maybeSingle();
     if (!userRaw) return [];
     const { data } = await supabase.from('progress').select('*').eq('student_id', userRaw.id);
     return data || [];

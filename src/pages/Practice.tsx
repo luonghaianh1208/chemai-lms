@@ -70,20 +70,30 @@ export function Practice() {
 
   // ---- AI question generation with cache ----
   const handleSelectLesson = async (lesson: any) => {
+    // Check attempt limit if configured
+    if (lesson.maxAttempts !== null && lesson.maxAttempts !== undefined) {
+      const attemptCount = await Storage.getAttemptCount(lesson.id);
+      if (attemptCount >= lesson.maxAttempts) {
+        toast.error(
+          `Bạn đã hết lượt làm bài cho bài này (${attemptCount}/${lesson.maxAttempts} lần). Vui lòng liên hệ Giáo viên.`,
+          { duration: 5000 }
+        );
+        return;
+      }
+    }
+
     const cacheKey = `chemai_practice_cache_${lesson.id}`;
     const cached = localStorage.getItem(cacheKey);
     let parsedCache = null;
     if (cached) {
       try {
         const cacheObj = JSON.parse(cached);
-        // Invalidate cache if teacher has updated the lesson since it was cached (U5)
         const cacheUpdatedAt = cacheObj.updatedAt;
         const lessonUpdatedAt = lesson.updatedAt;
         const isStale = lessonUpdatedAt && cacheUpdatedAt && lessonUpdatedAt > cacheUpdatedAt;
         if (!isStale && Array.isArray(cacheObj.questions)) {
           parsedCache = cacheObj.questions;
         } else if (Array.isArray(cacheObj)) {
-          // Backward compat: old cache format was plain array
           parsedCache = cacheObj;
         }
       } catch (e) { }
@@ -101,9 +111,12 @@ export function Practice() {
       setIsTimeUp(false);
       setTimeRemaining((lesson.practiceConfig?.timeLimit || 15) * 60);
     } else {
+      // New attempt — increment counter before generating
+      await Storage.incrementAttemptCount(lesson.id);
       await generateQuestions(lesson);
     }
   };
+
 
   const generateQuestions = async (lesson: any) => {
     setGeneratingLesson(lesson);
