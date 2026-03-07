@@ -13,7 +13,7 @@ export function LearningPath() {
    const [loading, setLoading] = useState(true);
    const navigate = useNavigate();
 
-   useEffect(() => {
+   const buildChapters = () => {
      setTimeout(() => {
          const lessonsData = Storage.getLessons().sort((a: any, b: any) => a.order_index - b.order_index);
          
@@ -73,8 +73,16 @@ export function LearningPath() {
 
          setChapters(formattedChapters);
          setLoading(false);
-     }, 300);
+   };
+
+   useEffect(() => {
+     setTimeout(() => buildChapters(), 300);
    }, []);
+
+   const handleRefresh = () => {
+     setLoading(true);
+     setTimeout(() => buildChapters(), 100);
+   };
 
    if (loading) return <div className="p-8 text-center text-slate-500">Đang tải dữ liệu lộ trình...</div>;
   return (
@@ -84,7 +92,7 @@ export function LearningPath() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Lộ trình học tập cá nhân</h1>
           <p className="text-slate-500">Được thiết kế riêng cho bạn bởi AI dựa trên năng lực hiện tại.</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleRefresh}>
           <Sparkles className="h-4 w-4" />
           Cập nhật lộ trình
         </Button>

@@ -71,7 +71,19 @@ export function Practice() {
     const cached = localStorage.getItem(cacheKey);
     let parsedCache = null;
     if (cached) {
-      try { parsedCache = JSON.parse(cached); } catch (e) {}
+      try {
+        const cacheObj = JSON.parse(cached);
+        // Invalidate cache if teacher has updated the lesson since it was cached (U5)
+        const cacheUpdatedAt = cacheObj.updatedAt;
+        const lessonUpdatedAt = lesson.updatedAt;
+        const isStale = lessonUpdatedAt && cacheUpdatedAt && lessonUpdatedAt > cacheUpdatedAt;
+        if (!isStale && Array.isArray(cacheObj.questions)) {
+          parsedCache = cacheObj.questions;
+        } else if (Array.isArray(cacheObj)) {
+          // Backward compat: old cache format was plain array
+          parsedCache = cacheObj;
+        }
+      } catch (e) {}
     }
 
     if (parsedCache && parsedCache.length > 0) {
@@ -122,7 +134,11 @@ export function Practice() {
 
       if (generatedQuestions.length === 0) throw new Error("Không có câu hỏi nào được lấy ra từ AI!");
 
-      localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify(generatedQuestions));
+      // Store with updatedAt for cache invalidation (U5)
+      localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify({
+        questions: generatedQuestions,
+        updatedAt: new Date().toISOString(),
+      }));
       setQuestions(generatedQuestions);
     } catch (error: any) {
       console.error("AI Generation Process Failed:", error);
@@ -132,7 +148,10 @@ export function Practice() {
         { type: "tf",  text: "Chất oxi hóa là chất nhường electron.", options: ["Đúng", "Sai"], correctAnswer: 1, explanation: "Chất oxi hóa nhận electron (sự khử)." },
         { type: "cloze", text: "Công thức hóa học của axit sunfuric là ___.", options: ["$H_2SO_4$", "$HCl$", "$HNO_3$"], correctAnswer: "$H_2SO_4$", explanation: "Công thức hóa học của axit sunfuric là $H_2SO_4$." },
       ];
-      localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify(fallback));
+      localStorage.setItem(`chemai_practice_cache_${lesson.id}`, JSON.stringify({
+        questions: fallback,
+        updatedAt: new Date().toISOString(),
+      }));
       setQuestions(fallback);
     } finally {
       setGeneratingLesson(null);

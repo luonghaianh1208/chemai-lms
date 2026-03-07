@@ -61,6 +61,11 @@ export function Dashboard() {
   const avgScore = completedCount > 0 ? Math.round(completedLessons.reduce((acc: any, l: any) => acc + (l.score || 0), 0) / completedCount) : 0;
   const studyTimeHours = (completedCount * 1.5).toFixed(1);
 
+  // Find the current/next lesson dynamically from Storage
+  const sortedLessons = [...lessonsProgress].sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
+  const nextLesson = sortedLessons.find((l: any) => l.status !== 'completed') || null;
+  const weakLesson = sortedLessons.find((l: any) => l.status === 'completed' && (l.score || 0) < (l.passingPercentage || 80)) || null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -77,7 +82,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{progress}%</div>
-            <p className="text-xs text-slate-500">+2% so với tuần trước</p>
+            <p className="text-xs text-slate-500">Tiến độ toàn khoá học</p>
             <Progress value={progress} className="mt-3" />
           </CardContent>
         </Card>
@@ -162,34 +167,50 @@ export function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-4 rounded-lg border p-4 bg-indigo-50/50">
-              <div className="rounded-full bg-indigo-100 p-2 text-indigo-600">
-                <PlayCircle className="h-6 w-6" />
+            {nextLesson ? (
+              <div className="flex items-start gap-4 rounded-lg border p-4 bg-indigo-50/50">
+                <div className="rounded-full bg-indigo-100 p-2 text-indigo-600">
+                  <PlayCircle className="h-6 w-6" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="font-medium leading-none">{nextLesson.chapter}</p>
+                  <p className="text-sm text-slate-500">{nextLesson.title}</p>
+                  <div className="flex items-center gap-2 pt-2">
+                    <Badge variant="secondary">{nextLesson.type === 'theory' ? 'Lý thuyết' : 'Luyện tập'}</Badge>
+                    <span className="text-xs text-slate-500">
+                      {nextLesson.status === 'in_progress' ? 'Đang học' : 'Chưa bắt đầu'}
+                    </span>
+                  </div>
+                </div>
+                <Button size="sm" onClick={() => navigate(`/lessons?id=${nextLesson.id}`)}>Tiếp tục học</Button>
               </div>
-              <div className="flex-1 space-y-1">
-                <p className="font-medium leading-none">Chương 4: Phản ứng oxi hóa - khử</p>
-                <p className="text-sm text-slate-500">Bài 12: Phản ứng oxi hóa - khử và ứng dụng</p>
-                <div className="flex items-center gap-2 pt-2">
-                  <Badge variant="secondary">Lý thuyết</Badge>
-                  <span className="text-xs text-slate-500">Tiến độ: 30%</span>
+            ) : (
+              <div className="flex items-start gap-4 rounded-lg border p-4 bg-emerald-50/50">
+                <div className="rounded-full bg-emerald-100 p-2 text-emerald-600">
+                  <Trophy className="h-6 w-6" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="font-medium leading-none">Xuất sắc! Bạn đã hoàn thành tất cả bài học.</p>
+                  <p className="text-sm text-slate-500">Điểm trung bình: {avgScore}/100</p>
                 </div>
               </div>
-              <Button size="sm" onClick={() => navigate('/lessons?id=1')}>Tiếp tục học</Button>
-            </div>
+            )}
 
-            <div className="flex items-start gap-4 rounded-lg border p-4">
-              <div className="rounded-full bg-slate-100 p-2 text-slate-600">
-                <BookOpen className="h-6 w-6" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <p className="font-medium leading-none">Luyện tập: Cân bằng phương trình</p>
-                <p className="text-sm text-slate-500">Mức độ: Vận dụng (Bạn đang yếu phần này)</p>
-                <div className="flex items-center gap-2 pt-2">
-                  <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">Cần cải thiện</Badge>
+            {weakLesson && (
+              <div className="flex items-start gap-4 rounded-lg border p-4">
+                <div className="rounded-full bg-slate-100 p-2 text-slate-600">
+                  <BookOpen className="h-6 w-6" />
                 </div>
+                <div className="flex-1 space-y-1">
+                  <p className="font-medium leading-none">Ôn tập: {weakLesson.title}</p>
+                  <p className="text-sm text-slate-500">Điểm: {weakLesson.score}/100 — Dưới ngưỡng đạt yêu cầu</p>
+                  <div className="flex items-center gap-2 pt-2">
+                    <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">Cần cải thiện</Badge>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => navigate('/practice')}>Luyện tập ngay</Button>
               </div>
-              <Button size="sm" variant="outline" onClick={() => navigate('/practice')}>Luyện tập ngay</Button>
-            </div>
+            )}
           </CardContent>
         </Card>
 

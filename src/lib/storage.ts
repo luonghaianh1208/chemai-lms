@@ -98,7 +98,8 @@ export const Storage = {
 
   addLesson(lessonData: any) {
     const lessons = this.getLessons();
-    const newId = lessons.length > 0 ? Math.max(...lessons.map((l: any) => l.id)) + 1 : 1;
+    const ids = lessons.map((l: any) => l.id).filter((id: any) => typeof id === 'number');
+    const newId = ids.length > 0 ? Math.max(...ids) + 1 : 1;
     const newLesson = {
       ...lessonData,
       id: newId,
@@ -106,7 +107,8 @@ export const Storage = {
       status: "not_started",
       score: 0,
       passingPercentage: lessonData.passingPercentage || 80,
-      dueDate: lessonData.dueDate || null
+      dueDate: lessonData.dueDate || null,
+      updatedAt: new Date().toISOString(),
     };
     lessons.push(newLesson);
     localStorage.setItem('lessons_data', JSON.stringify(lessons));
@@ -115,9 +117,10 @@ export const Storage = {
 
   updateLesson(updatedLesson: any) {
     const lessons = this.getLessons();
-    const updatedLessons = lessons.map((l: any) => l.id === updatedLesson.id ? { ...l, ...updatedLesson } : l);
+    const stamped = { ...updatedLesson, updatedAt: new Date().toISOString() };
+    const updatedLessons = lessons.map((l: any) => l.id === stamped.id ? { ...l, ...stamped } : l);
     localStorage.setItem('lessons_data', JSON.stringify(updatedLessons));
-    return updatedLesson;
+    return stamped;
   },
 
   deleteLesson(id: number) {

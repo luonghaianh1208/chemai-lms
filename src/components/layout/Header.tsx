@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 export function Header() {
   const role = RoleStorage.getRole();
+  const currentUser = Storage.getUser();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -71,7 +72,9 @@ export function Header() {
       setNotifications(notifs.slice(0, 5)); // show top 5
     };
     generateNotifications();
-    
+    // Auto-refresh notifications every 30s so changes appear without F5
+    const refreshInterval = setInterval(generateNotifications, 30000);
+
     // Close on outside click
     const handleClickOutside = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -79,7 +82,10 @@ export function Header() {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      clearInterval(refreshInterval);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -146,7 +152,7 @@ export function Header() {
         <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
           <div className="flex flex-col items-end">
             <span className="text-sm font-medium text-slate-900">
-              {role === 'teacher' ? 'Giáo viên' : 'Nguyễn Văn A'}
+              {role === 'teacher' ? 'Giáo viên' : (currentUser?.name || 'Học sinh')}
             </span>
             <span className="text-xs text-slate-500 uppercase font-semibold">
               <select 

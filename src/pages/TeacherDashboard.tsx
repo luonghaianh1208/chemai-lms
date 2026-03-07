@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Storage } from "@/lib/storage";
 import * as XLSX from "xlsx";
@@ -44,9 +44,7 @@ export function TeacherDashboard() {
   const [editingStudentId,   setEditingStudentId]   = useState<number | null>(null);
   const [editingStudentData, setEditingStudentData] = useState<any>({});
 
-  // OCR refs for the TeacherDashboard (passed into LessonManager via handleExtractTheory)
-  const ocrInputRef     = useRef<HTMLInputElement>(null);
-  const ocrEditInputRef = useRef<HTMLInputElement>(null);
+  // OCR is handled inside LessonManager which owns the file input refs
 
   const location   = useLocation();
   const queryParams= new URLSearchParams(location.search);
@@ -161,8 +159,7 @@ export function TeacherDashboard() {
         toast.error("Lỗi trích xuất AI. Vui lòng kiểm tra lại file của bạn.");
       } finally {
         if (isEditMode) setIsExtractingEdit(false); else setIsExtracting(false);
-        if (ocrInputRef.current)     ocrInputRef.current.value = "";
-        if (ocrEditInputRef.current) ocrEditInputRef.current.value = "";
+        // Note: file input value reset is handled by LessonManager's local refs
       }
     };
     reader.readAsDataURL(file);

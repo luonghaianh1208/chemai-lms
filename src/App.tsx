@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/layout/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { TeacherDashboard } from "./pages/TeacherDashboard";
@@ -15,21 +15,24 @@ import { RoleStorage } from "./lib/roleStorage";
 
 export default function App() {
   const role = RoleStorage.getRole();
-
-  const getDashboard = () => {
-    if (role === 'teacher') return <TeacherDashboard />;
-    return <Dashboard />; // Student dashboard
-  };
+  const isTeacher = role === "teacher";
+  const isStudent = role === "student";
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={getDashboard()} />
-          <Route path="learning-path" element={<LearningPath />} />
-          <Route path="lessons" element={<Lesson />} />
-          <Route path="practice" element={<Practice />} />
-          <Route path="analytics" element={<Analytics />} />
+          {/* Dashboard — role-specific */}
+          <Route index element={isTeacher ? <TeacherDashboard /> : <Dashboard />} />
+
+          {/* Student-only routes — redirect teachers to their dashboard (U6) */}
+          <Route path="learning-path" element={isStudent ? <LearningPath /> : <Navigate to="/" replace />} />
+          <Route path="lessons"       element={isStudent ? <Lesson />       : <Navigate to="/" replace />} />
+          <Route path="practice"      element={isStudent ? <Practice />      : <Navigate to="/" replace />} />
+          <Route path="analytics"     element={isStudent ? <Analytics />     : <Navigate to="/" replace />} />
+
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>
