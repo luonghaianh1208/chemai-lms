@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, BookOpen, BarChart3, Plus, UserCircle, CheckCircle, Pencil, X, Trash2 } from "lucide-react";
+import { Users, BookOpen, BarChart3, Plus, UserCircle, CheckCircle, Pencil, X, Trash2, LayoutDashboard } from "lucide-react";
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Storage } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,10 @@ export function TeacherDashboard() {
   
   // Edit State
   const [editingLesson, setEditingLesson] = useState<any>(null);
+
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const activeTab = queryParams.get('tab') || 'dashboard';
 
   useEffect(() => {
     setStudents(Storage.getStudents());
@@ -107,10 +112,19 @@ export function TeacherDashboard() {
     <>
       <div className="space-y-6">
         <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tính năng Giáo viên</h1>
-        <p className="text-slate-500">Quản lý lớp học, bài giảng và theo dõi tiến độ học sinh.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+           {activeTab === 'dashboard' ? 'Tính năng Giáo viên' : 
+            activeTab === 'students' ? 'Quản lý Lớp học' :
+            activeTab === 'lessons' ? 'Quản lý Bài giảng' : 'Báo cáo Điểm số'}
+        </h1>
+        <p className="text-slate-500">
+           {activeTab === 'dashboard' ? 'Quản lý tổng quan lớp học, bài giảng và theo dõi tiến độ học sinh.' : 
+            activeTab === 'students' ? 'Danh sách học sinh và trạng thái hoạt động.' :
+            activeTab === 'lessons' ? 'Khởi tạo và chỉnh sửa cấu trúc bài giảng tích hợp AI.' : 'Theo dõi thành tích và điểm số trung bình của học sinh.'}
+        </p>
       </div>
 
+      {activeTab === 'dashboard' && (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="hover:border-indigo-200 transition-colors cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -145,6 +159,10 @@ export function TeacherDashboard() {
           </CardContent>
         </Card>
       </div>
+      )}
+
+      {activeTab === 'lessons' && (
+        <div className="space-y-6">
 
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -264,7 +282,10 @@ export function TeacherDashboard() {
             </div>
           </CardContent>
         </Card>
+        </div>
+      )}
 
+      {(activeTab === 'students' || activeTab === 'reports') && (
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Danh sách Học sinh</CardTitle>
@@ -294,6 +315,7 @@ export function TeacherDashboard() {
             </div>
           </CardContent>
         </Card>
+      )}
     </div>
 
       {/* Edit Modal Overlay */}

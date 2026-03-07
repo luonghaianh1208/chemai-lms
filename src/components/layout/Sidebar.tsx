@@ -25,15 +25,15 @@ const studentNav = [
 
 const teacherNav = [
   { name: "Bảng điều khiển", href: "/", icon: LayoutDashboard },
-  { name: "Quản lý Lớp học", href: "#", icon: Users },
-  { name: "Tạo Bài giảng", href: "#", icon: GraduationCap },
-  { name: "Báo cáo điểm", href: "#", icon: BarChart3 },
+  { name: "Quản lý Lớp học", href: "/?tab=students", icon: Users },
+  { name: "Quản lý Bài giảng", href: "/?tab=lessons", icon: GraduationCap },
+  { name: "Báo cáo điểm", href: "/?tab=reports", icon: BarChart3 },
 ];
 
 const adminNav = [
   { name: "Giám sát hệ thống", href: "/", icon: ShieldAlert },
-  { name: "Quản lý Người dùng", href: "#", icon: Users },
-  { name: "Cấu hình AI", href: "#", icon: Settings },
+  { name: "Quản lý Người dùng", href: "/?tab=users", icon: Users },
+  { name: "Cấu hình AI", href: "/?tab=settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -53,7 +53,8 @@ export function Sidebar() {
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.href;
+            const currentPath = location.pathname + location.search;
+            const isActive = item.href === "/" ? currentPath === "/" : currentPath.includes(item.href);
             return (
               <Link
                 key={item.name}
