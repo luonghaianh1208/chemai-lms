@@ -17,7 +17,8 @@ const DEFAULT_LESSONS = [
     type: "theory",
     order_index: 12,
     status: "in_progress",
-    score: 30
+    score: 30,
+    passingPercentage: 80
   },
   {
     id: 2,
@@ -32,6 +33,7 @@ const DEFAULT_LESSONS = [
     order_index: 13,
     status: "not_started",
     score: 0,
+    passingPercentage: 80,
     dueDate: "2026-03-09T23:59"
   },
   {
@@ -43,7 +45,8 @@ const DEFAULT_LESSONS = [
     type: "theory",
     order_index: 1,
     status: "completed",
-    score: 100
+    score: 100,
+    passingPercentage: 80
   }
 ];
 
@@ -102,6 +105,7 @@ export const Storage = {
       order_index: lessons.length + 1,
       status: "not_started",
       score: 0,
+      passingPercentage: lessonData.passingPercentage || 80,
       dueDate: lessonData.dueDate || null
     };
     lessons.push(newLesson);

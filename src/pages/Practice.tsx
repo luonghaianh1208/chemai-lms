@@ -38,6 +38,7 @@ export function Practice() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   
   const navigate = useNavigate();
 
@@ -54,8 +55,8 @@ export function Practice() {
     setCurrentIndex(0);
     setCorrectCount(0);
     setSelectedAnswer(null);
-    setShortAnswerText("");
     setIsSubmitted(false);
+    setIsDraggingOver(false);
 
     const user = Storage.getUser();
     
@@ -108,7 +109,7 @@ export function Practice() {
       setQuestions([
          { type: "mcq", text: "Trong phản ứng: $Cu + 2AgNO_3 \\rightarrow Cu(NO_3)_2 + 2Ag$. Chất khử là:", options: ["$Cu$", "$AgNO_3$", "$Cu(NO_3)_2$", "$Ag$"], correctAnswer: 0, explanation: "$Cu$ nhường electron (sự oxi hóa)." },
          { type: "tf", text: "Chất oxi hóa là chất nhường electron.", options: ["Đúng", "Sai"], correctAnswer: 1, explanation: "Chất oxi hóa nhận electron (sự khử)." },
-         { type: "short", text: "Ký hiệu hóa học của Axit Sunfuric là gì?", answer: "H2SO4", explanation: "Công thức hóa học của axit sunfuric là $H_2SO_4$." }
+         { type: "cloze", text: "Công thức hóa học của axit sunfuric là ___.", options: ["$H_2SO_4$", "$HCl$", "$HNO_3$"], correctAnswer: "$H_2SO_4$", explanation: "Công thức hóa học của axit sunfuric là $H_2SO_4$." }
       ]);
       setLoading(false);
     }
@@ -121,17 +122,12 @@ export function Practice() {
   const question = questions[currentIndex];
 
   const handleSubmit = async () => {
-    if (selectedAnswer !== null || (question.type === 'short' && shortAnswerText.trim() !== '')) {
+    if (selectedAnswer !== null) {
       setIsSubmitted(true);
       
       let isCorrect = false;
-      if (question.type === 'mcq' || question.type === 'tf') {
+      if (question.type === 'mcq' || question.type === 'tf' || question.type === 'cloze') {
          isCorrect = selectedAnswer === question.correctAnswer;
-      } else if (question.type === 'short') {
-         const answerNorm = String(question.answer).toLowerCase().trim();
-         const inputNorm = shortAnswerText.toLowerCase().trim();
-         isCorrect = inputNorm.includes(answerNorm) || answerNorm.includes(inputNorm);
-         setSelectedAnswer(isCorrect ? question.answer : shortAnswerText);
       }
 
       if (isCorrect) {
@@ -147,8 +143,8 @@ export function Practice() {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
       setSelectedAnswer(null);
-      setShortAnswerText("");
       setIsSubmitted(false);
+      setIsDraggingOver(false);
     } else {
       const score = Math.round((correctCount / questions.length) * 100) || 0;
       Storage.updateProgress(selectedLesson.id, 'completed', score);
@@ -277,7 +273,33 @@ export function Practice() {
               )}
            </div>
         );
-     }
+     } else if (question.type === 'cloze') {
+         return (
+            <div className="space-y-4 mt-6">
+              <p className="text-sm font-semibold text-slate-500 mb-3 uppercase tracking-wider">Kéo thả thẻ từ sau vào ô trống (hoặc click để điền):</p>
+              <div className="flex flex-wrap gap-3">
+                 {question.options.map((option: string, index: number) => {
+                    const isUsed = selectedAnswer === option;
+                    return (
+                       <div 
+                          key={index}
+                          draggable={!isSubmitted}
+                          onDragStart={(e) => {
+                             if (!isSubmitted) e.dataTransfer.setData("text/plain", option);
+                          }}
+                          onClick={() => !isSubmitted && setSelectedAnswer(option)}
+                          className={cn("px-4 py-2 border-2 rounded-xl transition-all cursor-grab active:cursor-grabbing hover:shadow-md bg-white select-none whitespace-normal min-h-[46px] flex items-center justify-center font-medium", 
+                             isUsed ? "opacity-40 border-slate-200 cursor-default shadow-inner" : "border-indigo-200 hover:border-indigo-400 text-indigo-900 shadow-sm"
+                          )}
+                       >
+                          <MathMarkdown content={option} />
+                       </div>
+                    );
+                 })}
+              </div>
+            </div>
+         );
+      }
   };
 
   const getQuestionTypeBadge = () => {
@@ -285,6 +307,7 @@ export function Practice() {
       case 'mcq': return "Trắc nghiệm 4 đáp án";
       case 'tf': return "Đúng / Sai";
       case 'short': return "Trả lời ngắn";
+      case 'cloze': return "Điền từ (Kéo Thả)";
       default: return "Câu hỏi";
     }
   };
@@ -320,7 +343,7 @@ export function Practice() {
         </CardHeader>
         <CardContent className="pt-6 space-y-8">
           <div className="text-xl font-medium text-slate-900 leading-relaxed font-serif">
-            <MathMarkdown content={question.text} />
+            {renderQuestionText()}
           </div>
 
           {renderQuestionInput()}
@@ -344,7 +367,7 @@ export function Practice() {
         <CardFooter className="bg-slate-50/50 border-t p-5 flex justify-between gap-4">
           <Button variant="ghost" className="text-slate-500 hover:text-slate-700 bg-white border shadow-sm">Báo lỗi câu hỏi</Button>
           {!isSubmitted ? (
-            <Button onClick={handleSubmit} disabled={(question.type !== 'short' && selectedAnswer === null) || (question.type === 'short' && !shortAnswerText.trim())} className="min-w-[140px] text-base h-11 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
+            <Button onClick={handleSubmit} disabled={selectedAnswer === null} className="min-w-[140px] text-base h-11 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
               Kiểm tra
             </Button>
           ) : (

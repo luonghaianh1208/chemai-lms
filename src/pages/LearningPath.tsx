@@ -15,7 +15,31 @@ export function LearningPath() {
 
    useEffect(() => {
      setTimeout(() => {
-         const lessonsData = Storage.getLessons();
+         const lessonsData = Storage.getLessons().sort((a: any, b: any) => a.order_index - b.order_index);
+         
+         let previousPassed = true; // First lesson is always unlocked
+         let previousReq = 0;
+         
+         lessonsData.forEach((lesson: any) => {
+            const hasPassed = lesson.status === 'completed' && (lesson.score || 0) >= (lesson.passingPercentage || 80);
+            
+            if (previousPassed) {
+               if (lesson.status === 'not_started') {
+                  lesson._computedStatus = 'in-progress';
+               } else {
+                  lesson._computedStatus = lesson.status;
+               }
+               lesson._computedLocked = false;
+            } else {
+               lesson._computedStatus = 'locked';
+               lesson._computedLocked = true;
+               lesson._lockReason = previousReq;
+            }
+            
+            previousPassed = hasPassed;
+            previousReq = lesson.passingPercentage || 80;
+         });
+
          const grouped: any = {};
          lessonsData.forEach((lesson: any) => {
            if (!grouped[lesson.chapter]) grouped[lesson.chapter] = [];
@@ -24,30 +48,29 @@ export function LearningPath() {
          
          const formattedChapters = Object.keys(grouped).map((chapterTitle, index) => {
            const chapterLessons = grouped[chapterTitle];
-           const allCompleted = chapterLessons.length > 0 && chapterLessons.every((l: any) => l.status === 'completed');
-           const anyInProgress = chapterLessons.some((l: any) => l.status === 'in_progress');
-           // Unlock first if all are not_started
-           const isFirst = index === 0;
-           const status = allCompleted ? 'completed' : (anyInProgress || isFirst ? 'in-progress' : 'locked');
+           const allCompleted = chapterLessons.every((l: any) => l.status === 'completed' && (l.score || 0) >= (l.passingPercentage || 80));
+           const anyUnlockedNotCompleted = chapterLessons.some((l: any) => !l._computedLocked && !(l.status === 'completed' && (l.score || 0) >= (l.passingPercentage || 80)));
+           
+           const status = allCompleted ? 'completed' : (anyUnlockedNotCompleted ? 'in-progress' : 'locked');
            
            return {
              id: index,
              title: chapterTitle,
              status: status,
              progress: 0,
-             isRecommended: anyInProgress,
-             lessons: chapterLessons.map((l: any, lessonIndex: number) => ({
+             isRecommended: anyUnlockedNotCompleted && status === 'in-progress',
+             lessons: chapterLessons.map((l: any) => ({
                  id: l.id,
                  title: l.title,
                  type: l.type,
-                 status: l.status === 'not_started' && isFirst && lessonIndex === 0 ? 'in-progress' : (l.status === 'not_started' ? (anyInProgress ? 'locked' : (isFirst ? 'locked' : 'locked')) : (l.status === 'in_progress' ? 'in-progress' : 'completed'))
-             })) // Adjusted visual unlock logic slightly
+                 status: l._computedStatus,
+                 score: l.score,
+                 passingPercentage: l.passingPercentage || 80,
+                 lockReason: l._lockReason
+             }))
            };
          });
-         // Make sure at least the first lesson is unlocked 
-         if (formattedChapters.length > 0 && formattedChapters[0].lessons.length > 0 && formattedChapters[0].lessons[0].status === 'locked') {
-            formattedChapters[0].lessons[0].status = 'in-progress';
-         }
+
          setChapters(formattedChapters);
          setLoading(false);
      }, 300);
@@ -112,12 +135,19 @@ export function LearningPath() {
                         ) : (
                           <Circle className="h-4 w-4 text-slate-300" />
                         )}
-                        <span className={cn(
-                          lesson.status === "locked" ? "text-slate-500" : "text-slate-900",
-                          lesson.status === "in-progress" ? "font-medium" : ""
-                        )}>
-                          Bài {idx + 1}: {lesson.title}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className={cn(
+                            lesson.status === "locked" ? "text-slate-500" : "text-slate-900",
+                            lesson.status === "in-progress" ? "font-medium" : ""
+                          )}>
+                            Bài {idx + 1}: {lesson.title}
+                          </span>
+                          {lesson.status === "locked" && lesson.lockReason > 0 && (
+                            <span className="text-[10px] text-rose-500 font-medium mt-0.5">
+                              *Yêu cầu bài trước đạt tối thiểu {lesson.lockReason}%
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <Button 
                         size="sm" 

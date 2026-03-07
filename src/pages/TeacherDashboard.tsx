@@ -27,6 +27,7 @@ export function TeacherDashboard() {
   const [mcqCount, setMcqCount] = useState(5);
   const [tfCount, setTfCount] = useState(2);
   const [shortCount, setShortCount] = useState(2);
+  const [passingPercentage, setPassingPercentage] = useState(80);
   const [dueDate, setDueDate] = useState("");
   
   // Edit State
@@ -63,6 +64,7 @@ export function TeacherDashboard() {
       youtubeUrl: formattedYoutubeUrl,
       practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount },
       type: "theory",
+      passingPercentage: passingPercentage,
       dueDate: dueDate || null
     });
     setLessons([...lessons, added]);
@@ -73,6 +75,7 @@ export function TeacherDashboard() {
     setMcqCount(5);
     setTfCount(2);
     setShortCount(2);
+    setPassingPercentage(80);
     setDueDate("");
     toast.success("Tạo bài giảng mới thành công!");
   };
@@ -87,6 +90,7 @@ export function TeacherDashboard() {
       mcqCount: lesson.practiceConfig?.mcq ?? 5,
       tfCount: lesson.practiceConfig?.tf ?? 2,
       shortCount: lesson.practiceConfig?.short ?? 2,
+      passingPercentage: lesson.passingPercentage ?? 80,
       dueDate: lesson.dueDate || ""
     });
   };
@@ -101,6 +105,7 @@ export function TeacherDashboard() {
       theoryContent: editingLesson.theoryContent,
       youtubeUrl: formattedYoutubeUrl,
       practiceConfig: { mcq: editingLesson.mcqCount, tf: editingLesson.tfCount, short: editingLesson.shortCount },
+      passingPercentage: editingLesson.passingPercentage,
       dueDate: editingLesson.dueDate || null
     });
     setLessons(Storage.getLessons());
@@ -356,8 +361,12 @@ export function TeacherDashboard() {
                      <Input type="number" min="0" max="10" value={tfCount} onChange={(e) => setTfCount(parseInt(e.target.value) || 0)} />
                    </div>
                    <div className="flex-1 space-y-1">
-                     <label className="text-xs font-medium text-slate-500">Số câu Trả lời ngắn</label>
+                     <label className="text-xs font-medium text-slate-500">Trả lời ngắn</label>
                      <Input type="number" min="0" max="10" value={shortCount} onChange={(e) => setShortCount(parseInt(e.target.value) || 0)} />
+                   </div>
+                   <div className="flex-1 space-y-1">
+                     <label className="text-xs font-medium text-emerald-600">% Điểm đỗ</label>
+                     <Input type="number" min="0" max="100" value={passingPercentage} onChange={(e) => setPassingPercentage(parseInt(e.target.value) || 80)} />
                    </div>
                  </div>
               </div>
@@ -569,6 +578,10 @@ export function TeacherDashboard() {
                      <div className="flex-1 space-y-1">
                        <label className="text-xs font-medium text-slate-500">Trả lời ngắn</label>
                        <Input type="number" min="0" max="10" value={editingLesson.shortCount} onChange={(e) => setEditingLesson({...editingLesson, shortCount: parseInt(e.target.value) || 0})} />
+                     </div>
+                     <div className="flex-1 space-y-1">
+                       <label className="text-xs font-medium text-emerald-600">% Điểm đỗ</label>
+                       <Input type="number" min="0" max="100" value={editingLesson.passingPercentage} onChange={(e) => setEditingLesson({...editingLesson, passingPercentage: parseInt(e.target.value) || 80})} />
                      </div>
                    </div>
                 </div>

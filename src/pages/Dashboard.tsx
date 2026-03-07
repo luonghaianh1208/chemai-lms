@@ -11,13 +11,28 @@ export function Dashboard() {
   const [data, setData] = useState<any>(null);
   const navigate = useNavigate();
 
+  const [aiAnalysis, setAiAnalysis] = useState<string>("Đang phân tích dữ liệu học tập của bạn...");
+
   useEffect(() => {
-    // Simulate API delay for UI consistency
     setTimeout(() => {
+      const dbLessons = Storage.getLessons();
       setData({
         user: Storage.getUser(),
-        lessonsProgress: Storage.getLessons()
+        lessonsProgress: dbLessons
       });
+      
+      const compLessons = dbLessons.filter((l: any) => l.status === 'completed');
+      const compCount = compLessons.length;
+      const cAvg = compCount > 0 ? Math.round(compLessons.reduce((acc: any, l: any) => acc + (l.score || 0), 0) / compCount) : 0;
+      
+      if (compCount > 0) {
+        fetch('/.netlify/functions/chat', {
+          method: 'POST',
+          body: JSON.stringify({ message: `Dựa trên dữ liệu học tập của học viên: Điểm TB là ${cAvg}/100, học viên đã hoàn thành ${compCount} bài học (gồm: ${compLessons.map((l:any)=>l.title).join(', ')}). Đóng vai là gia sư AI, phân tích thành quả và đưa ra 1 lời khuyên ngắn 2-3 câu.` })
+        }).then(r => r.json()).then(res => setAiAnalysis(res.reply)).catch(() => setAiAnalysis("Lỗi khi tải phân tích từ AI."));
+      } else {
+        setAiAnalysis("Bạn chưa hoàn thành bài học nào. Hãy học bài đầu tiên để AI đánh giá nhé!");
+      }
     }, 300);
   }, []);
 
@@ -25,6 +40,11 @@ export function Dashboard() {
 
   const { user, lessonsProgress } = data;
   const progress = user.overall_progress || 0;
+  
+  const completedLessons = lessonsProgress.filter((l: any) => l.status === 'completed');
+  const completedCount = completedLessons.length;
+  const avgScore = completedCount > 0 ? Math.round(completedLessons.reduce((acc: any, l: any) => acc + (l.score || 0), 0) / completedCount) : 0;
+  const studyTimeHours = (completedCount * 1.5).toFixed(1);
 
   return (
     <div className="space-y-6">
@@ -52,8 +72,8 @@ export function Dashboard() {
             <Trophy className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8.5</div>
-            <p className="text-xs text-slate-500">Mức Khá - Giỏi</p>
+            <div className="text-2xl font-bold">{avgScore}</div>
+            <p className="text-xs text-slate-500">{avgScore >= 80 ? 'Khá - Giỏi' : 'Cần cố gắng'}</p>
           </CardContent>
         </Card>
         <Card>
@@ -62,18 +82,18 @@ export function Dashboard() {
             <Clock className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12h 30m</div>
-            <p className="text-xs text-slate-500">Trong tuần này</p>
+            <div className="text-2xl font-bold">{studyTimeHours}h</div>
+            <p className="text-xs text-slate-500">Ước tính toàn khóa</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bài tập hoàn thành</CardTitle>
+            <CardTitle className="text-sm font-medium">Bài đã học xong</CardTitle>
             <BookOpen className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">124</div>
-            <p className="text-xs text-slate-500">Tỷ lệ đúng: 78%</p>
+            <div className="text-2xl font-bold">{completedCount} / {lessonsProgress.length}</div>
+            <p className="text-xs text-slate-500">Tiến độ lộ trình</p>
           </CardContent>
         </Card>
       </div>
@@ -165,30 +185,17 @@ export function Dashboard() {
             <CardDescription>Đánh giá năng lực hiện tại của bạn</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-emerald-600 flex items-center gap-1">
-                  Điểm mạnh
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">Cấu tạo nguyên tử</Badge>
-                <Badge variant="secondary">Bảng tuần hoàn</Badge>
-                <Badge variant="secondary">Liên kết hóa học</Badge>
-              </div>
+            <div className="flex gap-4 items-start">
+               <div className="p-2 bg-emerald-100/50 rounded-full border border-emerald-200">
+                  <Sparkles className="h-5 w-5 text-emerald-600" />
+               </div>
+               <div className="text-sm text-slate-700 leading-relaxed">
+                 {aiAnalysis}
+               </div>
             </div>
             
-            <div className="space-y-2 pt-4 border-t">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-red-600 flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4" />
-                  Cần cải thiện
-                </span>
-              </div>
-              <p className="text-sm text-slate-600">
-                Bạn thường xuyên sai sót trong việc xác định số oxi hóa và cân bằng phương trình phản ứng oxi hóa - khử phức tạp.
-              </p>
-              <Button variant="link" className="px-0 text-indigo-600 h-auto">Xem chi tiết phân tích &rarr;</Button>
+            <div className="pt-2">
+               <Button variant="link" onClick={() => navigate('/analytics')} className="px-0 text-indigo-600 h-auto">Xem báo cáo chi tiết &rarr;</Button>
             </div>
           </CardContent>
         </Card>
