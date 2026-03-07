@@ -89,7 +89,7 @@ export function Practice() {
     if (parsedCache && parsedCache.length > 0) {
       setQuestions(parsedCache);
       setCurrentIndex(0);
-      setCorrectCount(0);
+      setEarnedScore(0);
       setSelectedAnswer(null);
       setIsSubmitted(false);
       setIsDraggingOver(false);
@@ -106,7 +106,7 @@ export function Practice() {
     setGeneratingLesson(lesson);
     setQuestions([]);
     setCurrentIndex(0);
-    setCorrectCount(0);
+    setEarnedScore(0);
     setSelectedAnswer(null);
     setIsSubmitted(false);
     setIsDraggingOver(false);
@@ -174,11 +174,12 @@ export function Practice() {
   };
 
   const getQuestionWeight = (type: string) => {
+    const pointsConfig = selectedLesson?.practiceConfig?.points || {};
     switch (type) {
-      case "mcq": return 1;
-      case "tf": return 0.5;
-      case "short": return 2;
-      case "cloze": return 2;
+      case "mcq": return pointsConfig.mcq ?? 1;
+      case "tf": return pointsConfig.tf ?? 0.5;
+      case "short": return pointsConfig.short ?? 2;
+      case "cloze": return pointsConfig.short ?? 2;
       default: return 1;
     }
   };

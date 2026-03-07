@@ -32,6 +32,9 @@ interface LessonManagerProps {
   mcqCount: number;
   tfCount: number;
   shortCount: number;
+  mcqPoints: number;
+  tfPoints: number;
+  shortPoints: number;
   passingPercentage: number;
   timeLimit: number;
   dueDate: string;
@@ -45,6 +48,9 @@ interface LessonManagerProps {
   setMcqCount: (v: number) => void;
   setTfCount: (v: number) => void;
   setShortCount: (v: number) => void;
+  setMcqPoints: (v: number) => void;
+  setTfPoints: (v: number) => void;
+  setShortPoints: (v: number) => void;
   setPassingPercentage: (v: number) => void;
   setTimeLimit: (v: number) => void;
   setDueDate: (v: string) => void;
@@ -67,11 +73,11 @@ export function LessonManager({
   lessons,
   newLessonGrade, newLessonChapter, newLessonTitle,
   youtubeUrl, theoryContent,
-  mcqCount, tfCount, shortCount, passingPercentage, timeLimit, dueDate,
+  mcqCount, tfCount, shortCount, mcqPoints, tfPoints, shortPoints, passingPercentage, timeLimit, dueDate,
   isExtracting,
   setNewLessonGrade, setNewLessonChapter, setNewLessonTitle,
   setYoutubeUrl, setTheoryContent,
-  setMcqCount, setTfCount, setShortCount, setPassingPercentage, setTimeLimit, setDueDate,
+  setMcqCount, setTfCount, setShortCount, setMcqPoints, setTfPoints, setShortPoints, setPassingPercentage, setTimeLimit, setDueDate,
   editingLesson, setEditingLesson, isExtractingEdit,
   handleCreateLesson, handleUpdateLesson, handleDeleteLesson, handleEditClick, handleReorderLesson,
   handleExtractTheory,
@@ -165,18 +171,29 @@ export function LessonManager({
             {/* AI config */}
             <div className="space-y-3 pt-4 border-t">
               <h4 className="text-sm font-semibold text-slate-900 border-l-4 border-indigo-600 pl-2">Cấu hình Sinh bài tập AI tự động</h4>
-              <div className="flex gap-4">
+              
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 {[
-                  { label: "Trắc nghiệm (MCQ)", val: mcqCount, set: setMcqCount, max: 20, color: "text-slate-500" },
-                  { label: "Đúng/Sai (T/F)",    val: tfCount,  set: setTfCount,  max: 10, color: "text-slate-500" },
-                  { label: "Trả lời ngắn",       val: shortCount, set: setShortCount, max: 10, color: "text-slate-500" },
+                  { label: "Trắc nghiệm (MCQ) (Câu|Điểm)", count: mcqCount, setCount: setMcqCount, points: mcqPoints, setPoints: setMcqPoints, max: 20, color: "text-slate-500" },
+                  { label: "Đúng/Sai (T/F) (Câu|Điểm)",    count: tfCount,  setCount: setTfCount,  points: tfPoints, setPoints: setTfPoints, max: 10, color: "text-slate-500" },
+                  { label: "Trả lời ngắn (Câu|Điểm)",       count: shortCount, setCount: setShortCount, points: shortPoints, setPoints: setShortPoints, max: 10, color: "text-slate-500" },
+                ].map(({ label, count, setCount, points, setPoints, max, color }) => (
+                  <div key={label} className="space-y-1 bg-slate-50 p-2 rounded-md border border-slate-100">
+                    <label className={`text-[11px] font-medium leading-tight block ${color}`}>{label}</label>
+                    <div className="flex gap-1">
+                      <Input type="number" min="0" max={max} value={count} onChange={(e) => setCount(parseInt(e.target.value) || 0)} className="h-8 text-xs p-1 text-center" title="Số lượng câu hỏi" />
+                      <Input type="number" min="0" step="0.5" value={points} onChange={(e) => setPoints(parseFloat(e.target.value) || 0)} className="h-8 text-xs p-1 text-center bg-indigo-50 border-indigo-100" title="Điểm mỗi câu" />
+                    </div>
+                  </div>
+                ))}
+                
+                {[
                   { label: "% Điểm đỗ",          val: passingPercentage, set: setPassingPercentage, max: 100, color: "text-emerald-600" },
                   { label: "Thời gian (Phút)",   val: timeLimit, set: setTimeLimit, max: 180, color: "text-indigo-600" },
                 ].map(({ label, val, set, max, color }) => (
-                  <div key={label} className="flex-1 space-y-1">
+                  <div key={label} className="space-y-1">
                     <label className={`text-xs font-medium ${color}`}>{label}</label>
-                    <Input type="number" min="0" max={max} value={val}
-                      onChange={(e) => set(parseInt(e.target.value) || 0)} />
+                    <Input type="number" min="0" max={max} value={val} onChange={(e) => set(parseInt(e.target.value) || 0)} />
                   </div>
                 ))}
               </div>
@@ -347,23 +364,40 @@ export function LessonManager({
                     </div>
                   </div>
                 </div>
+
                 <div className="space-y-3 pt-4 border-t">
-                  <h4 className="text-sm font-semibold text-slate-900 border-l-4 border-indigo-600 pl-2">Cấu hình Sinh bài tập AI</h4>
-                  <div className="flex gap-4">
+                  <h4 className="text-sm font-semibold text-slate-900 border-l-4 border-indigo-600 pl-2">Cấu hình Sinh bài tập bằng AI</h4>
+                  
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                     {[
-                      { label: "MCQ",          key: "mcqCount",          max: 20, color: "text-slate-500" },
-                      { label: "Đúng/Sai",     key: "tfCount",           max: 10, color: "text-slate-500" },
-                      { label: "Trả lời ngắn", key: "shortCount",        max: 10, color: "text-slate-500" },
-                      { label: "% Điểm đỗ",   key: "passingPercentage", max: 100, color: "text-emerald-600" },
-                      { label: "Thời gian",    key: "timeLimit",         max: 180, color: "text-indigo-600" },
-                    ].map(({ label, key, max, color }) => (
-                      <div key={key} className="flex-1 space-y-1">
+                      { label: "Trắc nghiệm (MCQ) (Câu|Điểm)", count: editingLesson.mcqCount, fieldCount: "mcqCount", points: editingLesson.mcqPoints, fieldPoints: "mcqPoints", max: 20, color: "text-slate-500" },
+                      { label: "Đúng/Sai (T/F) (Câu|Điểm)",    count: editingLesson.tfCount,  fieldCount: "tfCount",  points: editingLesson.tfPoints, fieldPoints: "tfPoints", max: 10, color: "text-slate-500" },
+                      { label: "Trả lời ngắn (Câu|Điểm)",       count: editingLesson.shortCount, fieldCount: "shortCount", points: editingLesson.shortPoints, fieldPoints: "shortPoints", max: 10, color: "text-slate-500" },
+                    ].map(({ label, count, fieldCount, points, fieldPoints, max, color }) => (
+                      <div key={label} className="space-y-1 bg-slate-50 p-2 rounded-md border border-slate-100">
+                        <label className={`text-[11px] font-medium block leading-tight ${color}`}>{label}</label>
+                        <div className="flex gap-1">
+                          <Input type="number" min="0" max={max} value={count} onChange={(e) => setEditingLesson({ ...editingLesson, [fieldCount]: parseInt(e.target.value) || 0 })} className="h-8 text-xs p-1 text-center" title="Số lượng câu" />
+                          <Input type="number" min="0" step="0.5" value={points} onChange={(e) => setEditingLesson({ ...editingLesson, [fieldPoints]: parseFloat(e.target.value) || 0 })} className="h-8 text-xs p-1 text-center bg-indigo-50 border-indigo-100" title="Điểm mỗi câu" />
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {[
+                      { label: "% Điểm đỗ",          val: editingLesson.passingPercentage, field: "passingPercentage", max: 100, color: "text-emerald-600" },
+                      { label: "Thời gian (Phút)",   val: editingLesson.timeLimit,         field: "timeLimit",         max: 180, color: "text-indigo-600" },
+                    ].map(({ label, val, field, max, color }) => (
+                      <div key={label} className="space-y-1">
                         <label className={`text-xs font-medium ${color}`}>{label}</label>
-                        <Input type="number" min="0" max={max} value={editingLesson[key]}
-                          onChange={(e) => setEditingLesson({ ...editingLesson, [key]: parseInt(e.target.value) || 0 })} />
+                        <Input type="number" min="0" max={max} value={val} onChange={(e) => setEditingLesson({ ...editingLesson, [field]: parseInt(e.target.value) || 0 })} />
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button variant="outline" onClick={() => setEditingLesson(null)}>Hủy</Button>
+                  <Button form="edit-lesson-form" type="submit" className="bg-indigo-600 text-white hover:bg-indigo-700">Lưu thay đổi</Button>
                 </div>
               </form>
             </CardContent>

@@ -32,6 +32,9 @@ export function TeacherDashboard() {
   const [mcqCount,          setMcqCount]         = useState(5);
   const [tfCount,           setTfCount]          = useState(2);
   const [shortCount,        setShortCount]       = useState(2);
+  const [mcqPoints,         setMcqPoints]        = useState(1);
+  const [tfPoints,          setTfPoints]         = useState(0.5);
+  const [shortPoints,       setShortPoints]      = useState(2);
   const [passingPercentage, setPassingPercentage]= useState(80);
   const [timeLimit,         setTimeLimit]        = useState(15);
   const [dueDate,           setDueDate]          = useState("");
@@ -74,7 +77,7 @@ export function TeacherDashboard() {
       chapter: newLessonChapter,
       theoryContent,
       youtubeUrl: getEmbedUrl(youtubeUrl),
-      practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount, timeLimit },
+      practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount, timeLimit, points: { mcq: mcqPoints, tf: tfPoints, short: shortPoints } },
       type: "theory",
       passingPercentage,
       dueDate: dueDate || null,
@@ -82,6 +85,7 @@ export function TeacherDashboard() {
     setLessons([...lessons, added]);
     setNewLessonTitle(""); setNewLessonChapter(""); setYoutubeUrl("");
     setTheoryContent(""); setMcqCount(5); setTfCount(2); setShortCount(2);
+    setMcqPoints(1); setTfPoints(0.5); setShortPoints(2);
     setPassingPercentage(80); setTimeLimit(15); setDueDate("");
     toast.success("Tạo bài giảng mới thành công!");
   };
@@ -98,6 +102,9 @@ export function TeacherDashboard() {
       mcqCount: lesson.practiceConfig?.mcq ?? 5,
       tfCount:  lesson.practiceConfig?.tf  ?? 2,
       shortCount: lesson.practiceConfig?.short ?? 2,
+      mcqPoints: lesson.practiceConfig?.points?.mcq ?? 1,
+      tfPoints: lesson.practiceConfig?.points?.tf ?? 0.5,
+      shortPoints: lesson.practiceConfig?.points?.short ?? 2,
       timeLimit: lesson.practiceConfig?.timeLimit ?? 15,
       passingPercentage: lesson.passingPercentage ?? 80,
       dueDate: lesson.dueDate || "",
@@ -118,7 +125,7 @@ export function TeacherDashboard() {
       ...pureLesson,
       youtubeUrl: getEmbedUrl(pureLesson.youtubeUrl),
       theoryContent: pureLesson.theoryContent,
-      practiceConfig: { mcq: pureLesson.mcqCount, tf: pureLesson.tfCount, short: pureLesson.shortCount, timeLimit: pureLesson.timeLimit },
+      practiceConfig: { mcq: pureLesson.mcqCount, tf: pureLesson.tfCount, short: pureLesson.shortCount, timeLimit: pureLesson.timeLimit, points: { mcq: pureLesson.mcqPoints, tf: pureLesson.tfPoints, short: pureLesson.shortPoints } },
     });
     setLessons(lessons.map((l: any) => l.id === updated.id ? updated : l));
     setEditingLesson(null);
@@ -269,11 +276,13 @@ export function TeacherDashboard() {
             newLessonGrade={newLessonGrade} newLessonChapter={newLessonChapter} newLessonTitle={newLessonTitle}
             youtubeUrl={youtubeUrl} theoryContent={theoryContent}
             mcqCount={mcqCount} tfCount={tfCount} shortCount={shortCount}
+            mcqPoints={mcqPoints} tfPoints={tfPoints} shortPoints={shortPoints}
             passingPercentage={passingPercentage} timeLimit={timeLimit} dueDate={dueDate}
             isExtracting={isExtracting}
             setNewLessonGrade={setNewLessonGrade} setNewLessonChapter={setNewLessonChapter} setNewLessonTitle={setNewLessonTitle}
             setYoutubeUrl={setYoutubeUrl} setTheoryContent={setTheoryContent}
             setMcqCount={setMcqCount} setTfCount={setTfCount} setShortCount={setShortCount}
+            setMcqPoints={setMcqPoints} setTfPoints={setTfPoints} setShortPoints={setShortPoints}
             setPassingPercentage={setPassingPercentage} setTimeLimit={setTimeLimit} setDueDate={setDueDate}
             // edit props
             editingLesson={editingLesson} setEditingLesson={setEditingLesson} isExtractingEdit={isExtractingEdit}
