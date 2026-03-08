@@ -482,10 +482,6 @@ export function LessonManager({
                 </div>
               </form>
             </CardContent>
-            <div className="border-t p-4 bg-slate-50 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditingLesson(null)}>Hủy</Button>
-              <Button form="edit-lesson-form" type="submit" className="bg-indigo-600 text-white hover:bg-indigo-700">Lưu thay đổi</Button>
-            </div>
           </Card>
         </div>
       )}

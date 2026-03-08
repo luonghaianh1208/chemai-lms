@@ -85,12 +85,42 @@ export function TeacherDashboard() {
       return;
     }
     try {
+      let finalTheory = theoryContent;
+
+      // ── Auto-generate theory if teacher left it blank ──────────────────
+      if (!finalTheory.trim()) {
+        toast.info("Nội dung lý thuyết trống. Đang nhờ AI tạo nội dung...", { duration: 4000 });
+        setIsExtracting(true);
+        try {
+          const res = await fetch("/.netlify/functions/generate-theory", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              grade: newLessonGrade,
+              chapter: newLessonChapter,
+              lessonTitle: newLessonTitle,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "AI Error");
+          finalTheory = data.theoryContent;
+          setTheoryContent(finalTheory);   // preview update
+          toast.success("AI đã tạo nội dung lý thuyết!");
+        } catch (aiErr: any) {
+          toast.warning(`Không thể tự động tạo nội dung: ${aiErr.message}. Bài giảng sẽ được tạo với nội dung mẫu.`);
+          finalTheory = `# ${newLessonTitle}\n\n> *Nội dung lý thuyết chưa được cập nhật. Giáo viên vui lòng chỉnh sửa bài giảng để bổ sung.*`;
+        } finally {
+          setIsExtracting(false);
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────
+
       const added = await Storage.addLesson({
         title: newLessonTitle,
         description: "Bài giảng với nội dung lý thuyết từ AI hoặc Giáo viên cung cấp.",
         chapter: newLessonChapter,
-        grade: newLessonGrade,   // ← must pass grade so DB stores '10'/'11'/'12'
-        theoryContent,
+        grade: newLessonGrade,
+        theoryContent: finalTheory,
         youtubeUrl: getEmbedUrl(youtubeUrl),
         practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount, timeLimit, points: { mcq: mcqPoints, tf: tfPoints, short: shortPoints } },
         type: "theory",
@@ -114,16 +144,8 @@ export function TeacherDashboard() {
     // Handle old format 'Lớp 10' and new format '10' both
     let matchedGrade = lesson.grade;
     if (!matchedGrade || matchedGrade.startsWith('Lớp ') || matchedGrade.startsWith('Khối ')) {
-      // Try to extract number from 'Lớp 10' or 'Khối 10'
       const numMatch = String(matchedGrade || '').match(/\d+/);
-      if (numMatch) {
-        matchedGrade = numMatch[0];
-      } else {
-        // Guess from chapter which grade it belongs to
-        matchedGrade = Object.keys(CHEMISTRY_CURRICULUM).find(g =>
-          Object.keys(CHEMISTRY_CURRICULUM[g] || {}).includes(lesson.chapter)
-        )?.replace('Lớp ', '') || '10';
-      }
+      matchedGrade = numMatch ? numMatch[0] : '10';
     }
 
     setEditingLesson({
