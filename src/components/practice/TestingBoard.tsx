@@ -318,7 +318,7 @@ export function TestingBoard({
             </Button>
           ) : (
             <Button
-              onClick={onNext}
+              onClick={() => onNext()}
               className="min-w-[140px] gap-2 text-base h-11 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
             >
               {currentIndex < questions.length - 1 ? "Câu tiếp theo" : "Hoàn thành Bài tập"}

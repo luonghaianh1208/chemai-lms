@@ -20,7 +20,7 @@ export function LearningPath() {
          let previousReq = 0;
          
          lessonsData.forEach((lesson: any) => {
-            const hasPassed = lesson.status === 'completed' && (lesson.score || 0) >= (lesson.passingPercentage || 80);
+            const hasPassed = lesson.status === 'completed';
             
             if (previousPassed) {
                if (lesson.status === 'not_started') {
@@ -47,8 +47,8 @@ export function LearningPath() {
          
          const formattedChapters = Object.keys(grouped).map((chapterTitle, index) => {
            const chapterLessons = grouped[chapterTitle];
-           const allCompleted = chapterLessons.every((l: any) => l.status === 'completed' && (l.score || 0) >= (l.passingPercentage || 80));
-           const anyUnlockedNotCompleted = chapterLessons.some((l: any) => !l._computedLocked && !(l.status === 'completed' && (l.score || 0) >= (l.passingPercentage || 80)));
+           const allCompleted = chapterLessons.every((l: any) => l.status === 'completed');
+           const anyUnlockedNotCompleted = chapterLessons.some((l: any) => !l._computedLocked && l.status !== 'completed');
            
            const status = allCompleted ? 'completed' : (anyUnlockedNotCompleted ? 'in-progress' : 'locked');
            

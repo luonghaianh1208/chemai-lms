@@ -25,7 +25,7 @@ export function Lesson() {
       const lessons = (await Storage.getLessons()) || [];
       let previousPassed = true;
       const processedLessons = lessons.map((lesson: any) => {
-        const hasPassed = lesson.status === 'completed' && (lesson.score || 0) >= (lesson.passingPercentage || 80);
+        const hasPassed = lesson.status === 'completed';
         const isLocked = !previousPassed;
         previousPassed = hasPassed;
         return { ...lesson, _computedLocked: isLocked };

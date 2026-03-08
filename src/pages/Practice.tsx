@@ -305,7 +305,7 @@ export function Practice() {
       onShortAnswerChange={setShortAnswerText}
       onSetIsDraggingOver={setIsDraggingOver}
       onSubmit={handleSubmit}
-      onNext={handleNext}
+      onNext={() => handleNext(false)}
       onBack={handleBackToSelection}
       questionWeight={questions[currentIndex] ? getQuestionWeight(questions[currentIndex].type) : 0}
     />
