@@ -117,11 +117,12 @@ export function AITutorChat() {
       )}
 
       {isOpen && (
-        <Card className="fixed bottom-6 right-6 w-80 shadow-xl flex flex-col h-[500px] z-50 overflow-hidden ring-1 ring-slate-900/5">
-          <CardHeader className="p-4 border-b flex flex-row items-center justify-between bg-indigo-600 text-white rounded-t-xl">
+        <div className="fixed bottom-6 right-6 w-80 shadow-2xl z-50 rounded-2xl overflow-hidden ring-1 ring-slate-900/10 flex flex-col bg-white" style={{ height: '520px' }}>
+          {/* Header */}
+          <div className="flex-none p-4 border-b flex flex-row items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-2xl">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
-              <CardTitle className="text-base font-medium text-white">AI Trợ Giảng</CardTitle>
+              <span className="text-base font-semibold text-white">AI Trợ Giảng</span>
             </div>
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-8 w-8 text-white/80 hover:bg-white/20 hover:text-white" onClick={clearChat} title="Làm mới">
@@ -131,20 +132,22 @@ export function AITutorChat() {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-          </CardHeader>
-          
-          <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 custom-scrollbar">
+          </div>
+
+          {/* Messages — this is the ONLY scrollable area */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 bg-white">
             {messages.map((msg, idx) => (
-              <div key={idx} className={cn("flex gap-2", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
-                <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0", 
+              <div key={idx} className={cn("flex gap-2 items-start", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
+                <div className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
                   msg.role === "user" ? "bg-slate-200" : "bg-indigo-100 text-indigo-600")}>
-                  {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                  {msg.role === "user" ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
                 </div>
                 <div className={cn(
-                  "rounded-lg p-3 text-sm max-w-[85%] break-words overflow-x-auto",
+                  "rounded-2xl px-3 py-2.5 text-sm break-words",
+                  "max-w-[calc(100%-2.5rem)]",           // fills available width, never exceeds bubble area
                   msg.role === "user"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-slate-100 text-slate-800 prose prose-sm prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-white"
+                    ? "bg-indigo-600 text-white rounded-tr-sm"
+                    : "bg-slate-100 text-slate-800 rounded-tl-sm prose prose-sm prose-p:my-1 prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-white prose-ul:my-1 prose-li:my-0 max-w-none"
                 )}>
                   {msg.role === "user" ? (
                     msg.content
@@ -158,26 +161,27 @@ export function AITutorChat() {
             ))}
             {isTyping && (
               <div className="flex gap-2 flex-row items-center text-slate-400">
-                <div className="h-8 w-8 rounded-full bg-indigo-50 text-indigo-400 flex items-center justify-center shrink-0">
-                  <Bot className="h-4 w-4" />
+                <div className="h-7 w-7 rounded-full bg-indigo-50 text-indigo-400 flex items-center justify-center shrink-0">
+                  <Bot className="h-3.5 w-3.5" />
                 </div>
-                <div className="bg-slate-50 text-slate-500 rounded-lg py-2 px-3 text-sm flex gap-1 items-center italic">
+                <div className="bg-slate-50 text-slate-500 rounded-2xl py-2 px-3 text-sm flex gap-1 items-center italic">
                   <Loader2 className="h-3 w-3 animate-spin mr-1" /> AI đang suy nghĩ...
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
-          </CardContent>
-          
-          <CardFooter className="p-3 border-t">
-            <form 
+          </div>
+
+          {/* Input footer */}
+          <div className="flex-none p-3 border-t bg-white">
+            <form
               onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-              className="flex w-full items-center space-x-2"
+              className="flex w-full items-center gap-2"
             >
-              <Input 
+              <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Hỏi AI Trợ giảng..." 
+                placeholder="Hỏi AI Trợ giảng..."
                 className="flex-1"
                 disabled={isTyping}
               />
@@ -185,8 +189,8 @@ export function AITutorChat() {
                 <Send className="h-4 w-4" />
               </Button>
             </form>
-          </CardFooter>
-        </Card>
+          </div>
+        </div>
       )}
     </>
   );
