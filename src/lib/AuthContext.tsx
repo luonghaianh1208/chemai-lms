@@ -29,6 +29,7 @@ function buildProfileFromUser(user: User): any {
     email: user.email,
     full_name: user.user_metadata?.full_name || user.email || 'Người dùng',
     role: user.user_metadata?.role || 'student',
+    grade: user.user_metadata?.grade || '',
     // Default to 'active' for teachers, 'pending' for students
     // This will be updated once the background DB fetch completes
     status: user.user_metadata?.role === 'teacher' ? 'active' : 'pending',

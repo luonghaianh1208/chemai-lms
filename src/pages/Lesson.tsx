@@ -10,12 +10,14 @@ import { toast } from "sonner";
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { useAuth } from "@/lib/AuthContext";
 
 export function Lesson() {
   const [activeTab, setActiveTab] = useState("theory");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const lessonId = parseInt(searchParams.get('id') || '0');
+  const { profile } = useAuth();
 
   const [lesson, setLesson] = useState<any>(null);
   const [allLessons, setAllLessons] = useState<any[]>([]);
@@ -23,7 +25,8 @@ export function Lesson() {
 
   useEffect(() => {
     const loadData = async () => {
-      const lessons = (await Storage.getLessons()) || [];
+      const grade = profile?.grade || '';
+      const lessons = (await Storage.getLessons(grade || undefined)) || [];
       let previousPassed = true;
       const processedLessons = lessons.map((lesson: any) => {
         const hasPassed = lesson.status === 'completed';

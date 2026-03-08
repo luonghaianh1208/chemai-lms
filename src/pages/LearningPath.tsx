@@ -7,14 +7,17 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Storage } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
 
 export function LearningPath() {
    const [chapters, setChapters] = useState<any[]>([]);
    const [loading, setLoading] = useState(true);
    const navigate = useNavigate();
+   const { profile } = useAuth();
 
    const buildChapters = async () => {
-         const lessonsData = (await Storage.getLessons()).sort((a: any, b: any) => a.order_index - b.order_index);
+         const grade = profile?.grade || '';
+         const lessonsData = (await Storage.getLessons(grade || undefined)).sort((a: any, b: any) => a.order_index - b.order_index);
          
          let previousPassed = true; // First lesson is always unlocked
          let previousReq = 0;

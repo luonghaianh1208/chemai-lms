@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Storage } from "@/lib/storage";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
 import { LessonSelection } from "@/components/practice/LessonSelection";
 import { PrePracticeScreen } from "@/components/practice/PrePracticeScreen";
 import { TestingBoard } from "@/components/practice/TestingBoard";
@@ -28,14 +29,16 @@ export function Practice() {
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
 
   const navigate = useNavigate();
+  const { profile } = useAuth();
 
   useEffect(() => {
     const fetchLessons = async () => {
-      const lessons = (await Storage.getLessons()).filter((l) => l.type === "theory");
+      const grade = profile?.grade || '';
+      const lessons = (await Storage.getLessons(grade || undefined)).filter((l) => l.type === "theory");
       setAvailableLessons(lessons);
     };
     fetchLessons();
-  }, []);
+  }, [profile?.grade]);
 
   // ---- Timer countdown ----
   useEffect(() => {
