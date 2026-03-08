@@ -37,6 +37,7 @@ export function TeacherDashboard() {
   const [tfPoints,          setTfPoints]         = useState(0.5);
   const [shortPoints,       setShortPoints]      = useState(2);
   const [passingPercentage, setPassingPercentage]= useState(80);
+  const [maxAttempts,       setMaxAttempts]      = useState<number | undefined>(undefined);
   const [timeLimit,         setTimeLimit]        = useState(15);
   const [dueDate,           setDueDate]          = useState("");
   const [isExtracting,      setIsExtracting]     = useState(false);
@@ -83,29 +84,38 @@ export function TeacherDashboard() {
       toast.error(`Bài giảng "${newLessonTitle}" đã tồn tại trong ${newLessonChapter}! Hành động bị từ chối.`);
       return;
     }
-    const added = await Storage.addLesson({
-      title: newLessonTitle,
-      description: "Bài giảng với nội dung lý thuyết từ AI hoặc Giáo viên cung cấp.",
-      chapter: newLessonChapter,
-      theoryContent,
-      youtubeUrl: getEmbedUrl(youtubeUrl),
-      practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount, timeLimit, points: { mcq: mcqPoints, tf: tfPoints, short: shortPoints } },
-      type: "theory",
-      passingPercentage,
-      dueDate: dueDate || null,
-    });
-    setLessons([...lessons, added]);
-    setNewLessonTitle(""); setNewLessonChapter(""); setYoutubeUrl("");
-    setTheoryContent(""); setMcqCount(5); setTfCount(2); setShortCount(2);
-    setMcqPoints(1); setTfPoints(0.5); setShortPoints(2);
-    setPassingPercentage(80); setTimeLimit(15); setDueDate("");
-    toast.success("Tạo bài giảng mới thành công!");
+    try {
+      const added = await Storage.addLesson({
+        title: newLessonTitle,
+        description: "Bài giảng với nội dung lý thuyết từ AI hoặc Giáo viên cung cấp.",
+        chapter: newLessonChapter,
+        theoryContent,
+        youtubeUrl: getEmbedUrl(youtubeUrl),
+        practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount, timeLimit, points: { mcq: mcqPoints, tf: tfPoints, short: shortPoints } },
+        type: "theory",
+        passingPercentage,
+        maxAttempts: maxAttempts || null,
+        dueDate: dueDate || null,
+      });
+      setLessons([...lessons, added]);
+      setNewLessonTitle(""); setNewLessonChapter(""); setYoutubeUrl("");
+      setTheoryContent(""); setMcqCount(5); setTfCount(2); setShortCount(2);
+      setMcqPoints(1); setTfPoints(0.5); setShortPoints(2);
+      setPassingPercentage(80); setTimeLimit(15); setDueDate(""); setMaxAttempts(undefined);
+      toast.success("Tạo bài giảng mới thành công!");
+    } catch (error: any) {
+      toast.error(`Lỗi tạo bài giảng: ${error.message || 'Vui lòng kiểm tra lại thông tin'}`);
+    }
   };
 
   const handleEditClick = (lesson: any) => {
-    const matchedGrade = Object.keys(CHEMISTRY_CURRICULUM).find(grade =>
-      Object.keys(CHEMISTRY_CURRICULUM[grade]).includes(lesson.chapter)
-    ) || "Lớp 10";
+    let matchedGrade = lesson.grade;
+    if (!matchedGrade) {
+      matchedGrade = Object.keys(CHEMISTRY_CURRICULUM).find(grade =>
+        Object.keys(CHEMISTRY_CURRICULUM[grade]).includes(lesson.chapter)
+      ) || "Lớp 10";
+    }
+
     setEditingLesson({
       id: lesson.id, grade: matchedGrade,
       title: lesson.title || "", chapter: lesson.chapter || "",
@@ -119,6 +129,7 @@ export function TeacherDashboard() {
       shortPoints: lesson.practiceConfig?.points?.short ?? 2,
       timeLimit: lesson.practiceConfig?.timeLimit ?? 15,
       passingPercentage: lesson.passingPercentage ?? 80,
+      maxAttempts: lesson.max_attempts ?? undefined,
       dueDate: lesson.dueDate || "",
     });
   };
@@ -133,15 +144,20 @@ export function TeacherDashboard() {
       return;
     }
     const { grade, ...pureLesson } = editingLesson;
-    const updated = await Storage.updateLesson({
-      ...pureLesson,
-      youtubeUrl: getEmbedUrl(pureLesson.youtubeUrl),
-      theoryContent: pureLesson.theoryContent,
-      practiceConfig: { mcq: pureLesson.mcqCount, tf: pureLesson.tfCount, short: pureLesson.shortCount, timeLimit: pureLesson.timeLimit, points: { mcq: pureLesson.mcqPoints, tf: pureLesson.tfPoints, short: pureLesson.shortPoints } },
-    });
-    setLessons(lessons.map((l: any) => l.id === updated.id ? updated : l));
-    setEditingLesson(null);
-    toast.success("Cập nhật bài giảng thành công!");
+    try {
+      const updated = await Storage.updateLesson({
+        ...pureLesson,
+        grade,
+        youtubeUrl: getEmbedUrl(pureLesson.youtubeUrl),
+        theoryContent: pureLesson.theoryContent,
+        practiceConfig: { mcq: pureLesson.mcqCount, tf: pureLesson.tfCount, short: pureLesson.shortCount, timeLimit: pureLesson.timeLimit, points: { mcq: pureLesson.mcqPoints, tf: pureLesson.tfPoints, short: pureLesson.shortPoints } },
+      });
+      setLessons(lessons.map((l: any) => l.id === updated.id ? updated : l));
+      setEditingLesson(null);
+      toast.success("Cập nhật bài giảng thành công!");
+    } catch (error: any) {
+      toast.error(`Lỗi cập nhật bài giảng: ${error.message || 'Vui lòng thực hiện lại'}`);
+    }
   };
 
   const handleDeleteLesson = async (id: number) => {
@@ -328,6 +344,7 @@ export function TeacherDashboard() {
             setMcqCount={setMcqCount} setTfCount={setTfCount} setShortCount={setShortCount}
             setMcqPoints={setMcqPoints} setTfPoints={setTfPoints} setShortPoints={setShortPoints}
             setPassingPercentage={setPassingPercentage} setTimeLimit={setTimeLimit} setDueDate={setDueDate}
+            maxAttempts={maxAttempts} setMaxAttempts={setMaxAttempts}
             // edit props
             editingLesson={editingLesson} setEditingLesson={setEditingLesson} isExtractingEdit={isExtractingEdit}
             // handlers

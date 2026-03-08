@@ -38,6 +38,7 @@ interface LessonManagerProps {
   passingPercentage: number;
   timeLimit: number;
   dueDate: string;
+  maxAttempts: number | undefined;
   isExtracting: boolean;
   // Create form setters
   setNewLessonGrade: (v: string) => void;
@@ -54,6 +55,7 @@ interface LessonManagerProps {
   setPassingPercentage: (v: number) => void;
   setTimeLimit: (v: number) => void;
   setDueDate: (v: string) => void;
+  setMaxAttempts: (v: number | undefined) => void;
   // Edit state
   editingLesson: any;
   setEditingLesson: (v: any) => void;
@@ -73,11 +75,11 @@ export function LessonManager({
   lessons,
   newLessonGrade, newLessonChapter, newLessonTitle,
   youtubeUrl, theoryContent,
-  mcqCount, tfCount, shortCount, mcqPoints, tfPoints, shortPoints, passingPercentage, timeLimit, dueDate,
+  mcqCount, tfCount, shortCount, mcqPoints, tfPoints, shortPoints, passingPercentage, timeLimit, dueDate, maxAttempts,
   isExtracting,
   setNewLessonGrade, setNewLessonChapter, setNewLessonTitle,
   setYoutubeUrl, setTheoryContent,
-  setMcqCount, setTfCount, setShortCount, setMcqPoints, setTfPoints, setShortPoints, setPassingPercentage, setTimeLimit, setDueDate,
+  setMcqCount, setTfCount, setShortCount, setMcqPoints, setTfPoints, setShortPoints, setPassingPercentage, setTimeLimit, setDueDate, setMaxAttempts,
   editingLesson, setEditingLesson, isExtractingEdit,
   handleCreateLesson, handleUpdateLesson, handleDeleteLesson, handleEditClick, handleReorderLesson,
   handleExtractTheory,
@@ -188,12 +190,13 @@ export function LessonManager({
                 ))}
                 
                 {[
-                  { label: "% Điểm đỗ",          val: passingPercentage, set: setPassingPercentage, max: 100, color: "text-emerald-600" },
-                  { label: "Thời gian (Phút)",   val: timeLimit, set: setTimeLimit, max: 180, color: "text-indigo-600" },
-                ].map(({ label, val, set, max, color }) => (
+                  { label: "% Điểm đỗ",          val: passingPercentage, set: setPassingPercentage, max: 100, color: "text-emerald-600", type: 'number' },
+                  { label: "Số phút làm",        val: timeLimit, set: setTimeLimit, max: 180, color: "text-indigo-600", type: 'number' },
+                  { label: "Số lượt tối đa",     val: maxAttempts || "", set: (v: any) => setMaxAttempts(v === "" ? undefined : parseInt(v)), max: 50, color: "text-orange-600", type: 'number', placeholder: "VD: 3 (Trống = vô hạn)" },
+                ].map(({ label, val, set, max, color, type, placeholder }) => (
                   <div key={label} className="space-y-1">
                     <label className={`text-xs font-medium ${color}`}>{label}</label>
-                    <Input type="number" min="0" max={max} value={val} onChange={(e) => set(parseInt(e.target.value) || 0)} />
+                    <Input type={type as any} min="0" max={max} value={val} onChange={(e) => set(e.target.value)} placeholder={placeholder} />
                   </div>
                 ))}
               </div>
@@ -384,12 +387,13 @@ export function LessonManager({
                     ))}
                     
                     {[
-                      { label: "% Điểm đỗ",          val: editingLesson.passingPercentage, field: "passingPercentage", max: 100, color: "text-emerald-600" },
-                      { label: "Thời gian (Phút)",   val: editingLesson.timeLimit,         field: "timeLimit",         max: 180, color: "text-indigo-600" },
-                    ].map(({ label, val, field, max, color }) => (
+                      { label: "% Điểm đỗ",          val: editingLesson.passingPercentage, field: "passingPercentage", max: 100, color: "text-emerald-600", type: "number" },
+                      { label: "Số phút làm",        val: editingLesson.timeLimit,         field: "timeLimit",         max: 180, color: "text-indigo-600", type: "number" },
+                      { label: "Số lượt tối đa",     val: editingLesson.maxAttempts || "", field: "maxAttempts",       max: 50, color: "text-orange-600", type: "number", placeholder: "VD: 3 (Trống = vô hạn)" },
+                    ].map(({ label, val, field, max, color, type, placeholder }) => (
                       <div key={label} className="space-y-1">
                         <label className={`text-xs font-medium ${color}`}>{label}</label>
-                        <Input type="number" min="0" max={max} value={val} onChange={(e) => setEditingLesson({ ...editingLesson, [field]: parseInt(e.target.value) || 0 })} />
+                        <Input type={type as any} min="0" max={max} value={val} placeholder={placeholder} onChange={(e) => setEditingLesson({ ...editingLesson, [field]: e.target.value === "" ? undefined : parseInt(e.target.value) || 0 })} />
                       </div>
                     ))}
                   </div>

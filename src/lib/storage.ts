@@ -64,7 +64,7 @@ export const Storage = {
   },
 
   async addLesson(lessonData: any) {
-    const { data: maxLesson } = await supabase.from('lessons').select('order_index').order('order_index', { ascending: false }).limit(1).single();
+    const { data: maxLesson } = await supabase.from('lessons').select('order_index').order('order_index', { ascending: false }).limit(1).maybeSingle();
     const newOrder = maxLesson ? maxLesson.order_index + 1 : 1;
     
     const dbPayload = {
@@ -83,7 +83,11 @@ export const Storage = {
       updated_at: new Date().toISOString()
     };
 
-    const { data } = await supabase.from('lessons').insert(dbPayload).select().single();
+    const { data, error } = await supabase.from('lessons').insert(dbPayload).select().single();
+    if (error) {
+      console.error('Error adding lesson:', error);
+      throw error;
+    }
     return mapLesson(data);
   },
 
@@ -97,7 +101,11 @@ export const Storage = {
       max_attempts: l.maxAttempts ?? null,
       due_date: l.dueDate, updated_at: new Date().toISOString()
     };
-    const { data } = await supabase.from('lessons').update(dbPayload).eq('id', l.id).select().single();
+    const { data, error } = await supabase.from('lessons').update(dbPayload).eq('id', l.id).select().single();
+    if (error) {
+      console.error('Error updating lesson:', error);
+      throw error;
+    }
     return mapLesson(data);
   },
 
