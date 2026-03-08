@@ -19,38 +19,40 @@ export function Analytics() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      // Get user's public.users.id from auth_id
+      // Get user's public.users.id from auth_id (profile.id is the Supabase auth UUID)
+      const authId = profile?.auth_id ?? profile?.id;
       const { data: userRow } = await supabase
         .from('users')
         .select('id, full_name, overall_progress, grade')
-        .eq('auth_id', profile.auth_id || profile.id)
+        .eq('auth_id', authId)
         .maybeSingle();
 
       if (!userRow) { setStats(null); setLoading(false); return; }
 
-      // Fetch all progress records joined with lesson info
-      const { data: progressRows } = await supabase
-        .from('progress')
-        .select('*, lessons(title, chapter, grade)')
-        .eq('student_id', userRow.id)
-        .order('updated_at', { ascending: true });
+      // Fetch all progress records joined with lesson info AND total lesson count in parallel
+      const [progressResult, totalLessonsResult] = await Promise.all([
+        supabase
+          .from('progress')
+          .select('*, lessons(title, chapter, grade)')
+          .eq('student_id', userRow.id)
+          .order('updated_at', { ascending: true }),
+        supabase.from('lessons').select('id', { count: 'exact', head: true }),
+      ]);
 
-      const rows = progressRows || [];
+      const rows = progressResult.data || [];
+      const totalLessonsInSystem = totalLessonsResult.count || 1;
 
       // --- Computed stats ---
       const completed = rows.filter((r: any) => r.status === 'completed');
       const totalCompleted = completed.length;
-      const totalLessons = rows.length;
 
-      // Average score from completed lessons
+      // Average score from completed lessons (scores stored as 0-100)
       const avgScore = totalCompleted > 0
         ? Math.round(completed.reduce((s: number, r: any) => s + (r.score || 0), 0) / totalCompleted)
         : 0;
 
-      // Completion rate: completed / total progress rows (lessons attempted)
-      const completionRate = totalLessons > 0
-        ? Math.round((totalCompleted / totalLessons) * 100)
-        : 0;
+      // Completion rate: completed / TOTAL lessons in system (not just attempted)
+      const completionRate = Math.round((totalCompleted / totalLessonsInSystem) * 100);
 
       // Score trend: compare avg of last half vs first half of completed lessons
       let scoreTrend = 0;
@@ -63,12 +65,12 @@ export function Analytics() {
         scoreTrend = Math.round((secondAvg - firstAvg) * 10) / 10;
       }
 
-      // Line chart: completed lessons in order
+      // Line chart: completed lessons in order — scores are already 0-100
       const performanceData = [
         { name: 'Khởi điểm', score: 0 },
         ...completed.map((r: any, i: number) => ({
           name: `Lần ${i + 1}: ${r.lessons?.title?.slice(0, 15) || ''}`,
-          score: Math.round((r.score || 0) / 10),
+          score: r.score || 0,
         }))
       ];
 
@@ -206,7 +208,7 @@ export function Analytics() {
                   <LineChart data={performanceData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} />
-                    <YAxis domain={[0, 10]} axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} tickFormatter={(v) => `${v}`} />
                     <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                     <Line type="monotone" dataKey="score" stroke="#4f46e5" strokeWidth={3}
                       dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
