@@ -133,15 +133,19 @@ export function AITutorChat() {
             </div>
           </CardHeader>
           
-          <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+          <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 custom-scrollbar">
             {messages.map((msg, idx) => (
               <div key={idx} className={cn("flex gap-2", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
                 <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0", 
                   msg.role === "user" ? "bg-slate-200" : "bg-indigo-100 text-indigo-600")}>
                   {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                 </div>
-                <div className={cn("rounded-lg p-3 text-sm max-w-[85%] overflow-hidden", 
-                  msg.role === "user" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-800 prose prose-sm prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-white max-w-none")}>
+                <div className={cn(
+                  "rounded-lg p-3 text-sm max-w-[85%] break-words overflow-x-auto",
+                  msg.role === "user"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-slate-100 text-slate-800 prose prose-sm prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-white"
+                )}>
                   {msg.role === "user" ? (
                     msg.content
                   ) : (
