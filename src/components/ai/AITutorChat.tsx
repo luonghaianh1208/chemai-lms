@@ -117,16 +117,22 @@ export function AITutorChat() {
       )}
 
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-80 shadow-2xl z-50 rounded-2xl overflow-hidden ring-1 ring-slate-900/10 flex flex-col bg-white" style={{ height: '520px' }}>
-          {/* Header */}
-          <div className="flex-none p-4 border-b flex flex-row items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-2xl">
+        <div
+          className="fixed bottom-6 right-6 w-80 shadow-2xl z-50 rounded-2xl ring-1 ring-slate-900/10 bg-white flex flex-col"
+          style={{ height: '520px', maxHeight: '90vh' }}
+        >
+          {/* Header — fixed height */}
+          <div
+            className="shrink-0 px-4 flex flex-row items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-2xl"
+            style={{ height: '60px' }}
+          >
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
               <span className="text-base font-semibold text-white">AI Trợ Giảng</span>
             </div>
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-8 w-8 text-white/80 hover:bg-white/20 hover:text-white" onClick={clearChat} title="Làm mới">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
               </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20" onClick={() => setIsOpen(false)}>
                 <X className="h-4 w-4" />
@@ -134,21 +140,38 @@ export function AITutorChat() {
             </div>
           </div>
 
-          {/* Messages — this is the ONLY scrollable area */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 bg-white">
+          {/* Messages — explicit calc height, hard overflow scroll */}
+          <div
+            className="p-4 space-y-3 bg-white"
+            style={{
+              height: 'calc(520px - 60px - 68px)',
+              maxHeight: 'calc(520px - 60px - 68px)',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+            }}
+          >
             {messages.map((msg, idx) => (
               <div key={idx} className={cn("flex gap-2 items-start", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
-                <div className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                  msg.role === "user" ? "bg-slate-200" : "bg-indigo-100 text-indigo-600")}>
+                <div className={cn(
+                  "h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                  msg.role === "user" ? "bg-slate-200" : "bg-indigo-100 text-indigo-600"
+                )}>
                   {msg.role === "user" ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
                 </div>
-                <div className={cn(
-                  "rounded-2xl px-3 py-2.5 text-sm break-words",
-                  "max-w-[calc(100%-2.5rem)]",           // fills available width, never exceeds bubble area
-                  msg.role === "user"
-                    ? "bg-indigo-600 text-white rounded-tr-sm"
-                    : "bg-slate-100 text-slate-800 rounded-tl-sm prose prose-sm prose-p:my-1 prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-white prose-ul:my-1 prose-li:my-0 max-w-none"
-                )}>
+                <div
+                  className={cn(
+                    "rounded-2xl px-3 py-2 text-sm",
+                    "min-w-0",
+                    msg.role === "user"
+                      ? "bg-indigo-600 text-white rounded-tr-sm"
+                      : "bg-slate-100 text-slate-800 rounded-tl-sm prose prose-sm prose-p:my-1 prose-p:leading-relaxed prose-ul:my-1 prose-li:my-0"
+                  )}
+                  style={{
+                    maxWidth: 'calc(100% - 2.25rem)',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
                   {msg.role === "user" ? (
                     msg.content
                   ) : (
@@ -160,7 +183,7 @@ export function AITutorChat() {
               </div>
             ))}
             {isTyping && (
-              <div className="flex gap-2 flex-row items-center text-slate-400">
+              <div className="flex gap-2 flex-row items-center">
                 <div className="h-7 w-7 rounded-full bg-indigo-50 text-indigo-400 flex items-center justify-center shrink-0">
                   <Bot className="h-3.5 w-3.5" />
                 </div>
@@ -172,8 +195,11 @@ export function AITutorChat() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input footer */}
-          <div className="flex-none p-3 border-t bg-white">
+          {/* Input footer — fixed height */}
+          <div
+            className="shrink-0 px-3 py-3 border-t bg-white rounded-b-2xl"
+            style={{ height: '68px' }}
+          >
             <form
               onSubmit={(e) => { e.preventDefault(); handleSend(); }}
               className="flex w-full items-center gap-2"
