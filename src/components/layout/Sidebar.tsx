@@ -5,7 +5,7 @@ import {
   BookOpen, 
   PenTool, 
   BarChart3, 
-  MessageSquare,
+  History,
   Settings,
   LogOut,
   Users,
@@ -20,6 +20,7 @@ const studentNav = [
   { name: "Lộ trình học tập", href: "/learning-path", icon: Map },
   { name: "Bài học", href: "/lessons", icon: BookOpen },
   { name: "Luyện tập", href: "/practice", icon: PenTool },
+  { name: "Lịch sử làm bài", href: "/history", icon: History },
   { name: "Phân tích AI", href: "/analytics", icon: BarChart3 },
 ];
 
@@ -44,14 +45,14 @@ export function Sidebar() {
   const navItems = role === 'admin' ? adminNav : role === 'teacher' ? teacherNav : studentNav;
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-slate-200 bg-white">
-      <div className="flex h-20 items-center px-6 border-b border-slate-200">
+    <div className="flex h-screen w-64 flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 transition-colors">
+      <div className="flex h-20 items-center px-6 border-b border-slate-200 dark:border-slate-700">
         <div className="flex flex-col">
-          <div className="flex items-center gap-2 font-bold text-xl text-indigo-600">
+          <div className="flex items-center gap-2 font-bold text-xl text-indigo-600 dark:text-indigo-400">
              <BookOpen className="h-6 w-6" />
              <span>ChemAI LMS</span>
           </div>
-          <span className="text-[10px] text-slate-500 mt-1 leading-tight">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
             Đồng tác giả: Thầy giáo Bùi Hữu Hải và thầy giáo Lương Hải Anh - Trường THPT Chuyên Nguyễn Trãi
           </span>
         </div>
@@ -69,8 +70,8 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive 
-                    ? "bg-indigo-50 text-indigo-600" 
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400" 
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                 )}
               >
                 <item.icon className="h-5 w-5" />
@@ -81,14 +82,14 @@ export function Sidebar() {
         </nav>
       </div>
 
-      <div className="border-t border-slate-200 p-4">
-        <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 cursor-pointer">
+      <div className="border-t border-slate-200 dark:border-slate-700 p-4">
+        <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors">
           <Settings className="h-5 w-5" />
           Cài đặt
         </div>
         <div 
           onClick={signOut}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 cursor-pointer mt-1"
+          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer mt-1 transition-colors"
         >
           <LogOut className="h-5 w-5" />
           Đăng xuất

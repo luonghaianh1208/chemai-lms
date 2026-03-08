@@ -19,6 +19,8 @@ export function Practice() {
   const [generatingLesson, setGeneratingLesson] = useState<any>(null);
   const [earnedScore, setEarnedScore] = useState(0);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [answersLog, setAnswersLog] = useState<any[]>([]);
+  const practiceStartTime = useState<number>(() => Date.now())[0];
 
   const [isPracticeStarted, setIsPracticeStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -209,12 +211,33 @@ export function Practice() {
     let isCorrect = false;
 
     if (question.type === "short") {
-      const answerNorm = String(question.answer).toLowerCase().trim();
+      const answerNorm = String(question.correctAnswer ?? question.answer ?? "").toLowerCase().trim();
       const inputNorm = shortAnswerText.toLowerCase().trim();
       isCorrect = inputNorm.includes(answerNorm) || answerNorm.includes(inputNorm);
     } else {
       isCorrect = selectedAnswer === question.correctAnswer;
     }
+
+    // Build display values for answer review
+    let selectedDisplay: string;
+    let correctDisplay: string;
+    if (question.type === 'mcq' || question.type === 'tf') {
+      selectedDisplay = question.options?.[selectedAnswer as number] ?? String(selectedAnswer ?? '—');
+      correctDisplay = question.options?.[question.correctAnswer] ?? String(question.correctAnswer);
+    } else {
+      selectedDisplay = String(question.type === 'short' ? shortAnswerText : selectedAnswer ?? '—');
+      correctDisplay = String(question.correctAnswer ?? question.answer ?? '');
+    }
+
+    setAnswersLog(prev => [...prev, {
+      questionText: question.text,
+      selectedAnswer,
+      selectedDisplay,
+      correctAnswer: question.correctAnswer,
+      correctDisplay,
+      isCorrect,
+      explanation: question.explanation ?? ''
+    }]);
 
     if (isCorrect) {
       setEarnedScore((prev) => prev + getQuestionWeight(question.type));
@@ -236,11 +259,10 @@ export function Practice() {
       const scorePercentage = maxScore > 0 ? Math.round((earnedScore / maxScore) * 100) : 0;
       const passingPercentage = selectedLesson.passingPercentage || 80;
       const isPassed = scorePercentage >= passingPercentage;
+      const studyMinutes = Math.round((Date.now() - practiceStartTime) / 60000);
 
-      await Storage.updateProgress(selectedLesson.id, "completed", scorePercentage);
+      await Storage.updateProgress(selectedLesson.id, "completed", scorePercentage, studyMinutes, answersLog);
       window.dispatchEvent(new CustomEvent("practice-state", { detail: { isPractice: false } }));
-
-      // Clear cache so that the next time they select this lesson, new questions are generated
       localStorage.removeItem(`chemai_practice_cache_${selectedLesson.id}`);
 
       if (forceSubmit) {

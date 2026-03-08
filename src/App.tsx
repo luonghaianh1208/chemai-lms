@@ -6,6 +6,7 @@ import { LearningPath } from "@/pages/LearningPath";
 import { Lesson } from "@/pages/Lesson";
 import { Practice } from "@/pages/Practice";
 import { Analytics } from "@/pages/Analytics";
+import { History } from "@/pages/History";
 import { Login } from "@/pages/Login";
 import { Register } from "@/pages/Register";
 import { PendingApproval } from "@/pages/PendingApproval";
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="lessons"       element={<ProtectedRoute allowedRoles={['student']}><Lesson /></ProtectedRoute>} />
           <Route path="practice"      element={<ProtectedRoute allowedRoles={['student']}><Practice /></ProtectedRoute>} />
           <Route path="analytics"     element={<ProtectedRoute allowedRoles={['student']}><Analytics /></ProtectedRoute>} />
+          <Route path="history"       element={<ProtectedRoute allowedRoles={['student']}><History /></ProtectedRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

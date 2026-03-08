@@ -19,6 +19,7 @@ export function Lesson() {
 
   const [lesson, setLesson] = useState<any>(null);
   const [allLessons, setAllLessons] = useState<any[]>([]);
+  const [lessonStartTime] = useState<number>(Date.now());
 
   useEffect(() => {
     const loadData = async () => {
@@ -44,7 +45,8 @@ export function Lesson() {
 
   const handleComplete = async () => {
     if (!lesson) return;
-    await Storage.updateProgress(lesson.id, 'completed', 100);
+    const studyMinutes = Math.max(1, Math.round((Date.now() - lessonStartTime) / 60000));
+    await Storage.updateProgress(lesson.id, 'completed', 100, studyMinutes);
     toast.success("Chúc mừng! Bạn đã hoàn thành bài học 🚀");
     setTimeout(() => {
       navigate('/learning-path');

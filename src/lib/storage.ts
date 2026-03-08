@@ -188,25 +188,28 @@ export const Storage = {
     return true;
   },
 
-  async updateProgress(lessonId: number, status: string, score: number) {
-    // Use auth to get the correct logged-in student's row
+  async updateProgress(lessonId: number, status: string, score: number, studyMinutes?: number, answersSnapshot?: any[]) {
     const userRow = await getCurrentUserRow();
     if (!userRow) {
       console.error('updateProgress: no authenticated user found');
       return;
     }
-    
+
     const { data: prog } = await supabase
       .from('progress')
       .select('*')
       .eq('student_id', userRow.id)
       .eq('lesson_id', lessonId)
       .maybeSingle();
-    
+
+    const studyMins = studyMinutes ?? 0;
+
     if (prog) {
       await supabase.from('progress').update({
         status,
         score: Math.max(prog.score || 0, score),
+        study_time_minutes: (prog.study_time_minutes || 0) + studyMins,
+        answers_snapshot: answersSnapshot ?? prog.answers_snapshot,
         updated_at: new Date().toISOString()
       }).eq('id', prog.id);
     } else {
@@ -214,21 +217,21 @@ export const Storage = {
         student_id: userRow.id,
         lesson_id: lessonId,
         status,
-        score
+        score,
+        study_time_minutes: studyMins,
+        answers_snapshot: answersSnapshot ?? null
       });
     }
-    
-    // Update overall_progress for student
-    const { data: allProg } = await supabase
-      .from('progress')
-      .select('score')
-      .eq('student_id', userRow.id)
-      .eq('status', 'completed');
-    if (allProg && allProg.length > 0) {
-      const total = allProg.reduce((sum: number, p: any) => sum + (p.score || 0), 0);
-      const avg = Math.round(total / allProg.length);
-      await supabase.from('users').update({ overall_progress: avg }).eq('id', userRow.id);
-    }
+
+    // Update overall_progress as COMPLETION PERCENTAGE (completed / total lessons)
+    const [completedResult, totalResult] = await Promise.all([
+      supabase.from('progress').select('id', { count: 'exact', head: true }).eq('student_id', userRow.id).eq('status', 'completed'),
+      supabase.from('lessons').select('id', { count: 'exact', head: true })
+    ]);
+    const completedCount = completedResult.count || 0;
+    const totalCount = totalResult.count || 1;
+    const completionPercent = Math.round((completedCount / totalCount) * 100);
+    await supabase.from('users').update({ overall_progress: completionPercent }).eq('id', userRow.id);
   },
 
   // Get how many times current student attempted a lesson's practice
@@ -259,8 +262,59 @@ export const Storage = {
     return data || [];
   },
 
-  async getCheatWarnings() { return []; },
-  async addCheatWarning(title: string) { },
+  // Get real cheat warnings from DB
+  async getCheatWarnings() {
+    const { data } = await supabase
+      .from('cheat_warnings')
+      .select('*, users(full_name)')
+      .order('created_at', { ascending: false });
+    return (data || []).map((w: any) => ({
+      id: w.id,
+      studentName: w.users?.full_name || 'Học sinh',
+      lessonTitle: w.lesson_title,
+      timestamp: w.created_at
+    }));
+  },
+
+  // Save a cheat warning when student switches tab during exam
+  async addCheatWarning(lessonTitle: string) {
+    const userRow = await getCurrentUserRow();
+    if (!userRow) return;
+    await supabase.from('cheat_warnings').insert({
+      student_id: userRow.id,
+      lesson_title: lessonTitle
+    });
+  },
+
+  // Get student practice history for the History page
+  async getStudyHistory() {
+    const userRow = await getCurrentUserRow();
+    if (!userRow) return [];
+    const { data } = await supabase
+      .from('progress')
+      .select('*, lessons(title, chapter, passing_percentage)')
+      .eq('student_id', userRow.id)
+      .eq('status', 'completed')
+      .order('updated_at', { ascending: false });
+    return (data || []).map((p: any) => ({
+      id: p.id,
+      lessonTitle: p.lessons?.title || 'Bài học',
+      chapter: p.lessons?.chapter || '',
+      score: p.score || 0,
+      passingPercentage: p.lessons?.passing_percentage || 80,
+      studyMinutes: p.study_time_minutes || 0,
+      completedAt: p.updated_at,
+      answersSnapshot: p.answers_snapshot || []
+    }));
+  },
+
+  // Get total study minutes for the current student
+  async getTotalStudyMinutes() {
+    const userRow = await getCurrentUserRow();
+    if (!userRow) return 0;
+    const { data } = await supabase.from('progress').select('study_time_minutes').eq('student_id', userRow.id);
+    return (data || []).reduce((sum: number, p: any) => sum + (p.study_time_minutes || 0), 0);
+  },
 
   async getReportedBugs() {
     const { data } = await supabase.from('reports').select('*, users(full_name)');

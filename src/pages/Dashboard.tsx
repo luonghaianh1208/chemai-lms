@@ -15,19 +15,20 @@ export function Dashboard() {
   const { profile } = useAuth();
 
   const [aiAnalysis, setAiAnalysis] = useState<string>("Đang phân tích dữ liệu học tập của bạn...");
+  const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
 
   useEffect(() => {
     const load = async () => {
-      // Filter lessons by student's grade (from profile)
       const studentGrade = profile?.grade || '';
       const dbLessons = await Storage.getLessons(studentGrade || undefined);
       const user = await Storage.getUser();
+      const studyMins = await Storage.getTotalStudyMinutes();
+      setTotalStudyMinutes(studyMins);
       setData({
         user,
         lessonsProgress: dbLessons
       });
 
-      
       const compLessons = dbLessons.filter((l: any) => l.status === 'completed');
       const compCount = compLessons.length;
       const cAvg = compCount > 0 ? Math.round(compLessons.reduce((acc: any, l: any) => acc + (l.score || 0), 0) / compCount) : 0;
@@ -77,12 +78,18 @@ export function Dashboard() {
   if (!data) return <div className="p-8 text-center text-slate-500">Đang tải dữ liệu...</div>;
 
   const { user, lessonsProgress } = data;
-  const progress = user.overall_progress || 0;
+  const progress = user.overall_progress || 0;  // Now completion % from storage
   
   const completedLessons = lessonsProgress.filter((l: any) => l.status === 'completed');
   const completedCount = completedLessons.length;
   const avgScore = completedCount > 0 ? Math.round(completedLessons.reduce((acc: any, l: any) => acc + (l.score || 0), 0) / completedCount) : 0;
-  const studyTimeHours = (completedCount * 1.5).toFixed(1);
+
+  // Real study time from DB
+  const studyTimeHours = totalStudyMinutes >= 60
+    ? `${Math.floor(totalStudyMinutes / 60)}h ${totalStudyMinutes % 60}m`
+    : totalStudyMinutes > 0
+      ? `${totalStudyMinutes} phút`
+      : '0h';
 
   // Find the current/next lesson dynamically from Storage
   const sortedLessons = [...lessonsProgress].sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));

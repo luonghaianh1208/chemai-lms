@@ -5,11 +5,14 @@ import './index.css';
 import 'katex/dist/katex.min.css';
 
 import { AuthProvider } from './lib/AuthContext.tsx';
+import { ThemeProvider } from './lib/ThemeContext.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ThemeProvider>
   </StrictMode>,
 );
