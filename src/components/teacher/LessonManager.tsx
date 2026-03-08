@@ -71,6 +71,9 @@ interface LessonManagerProps {
 
 const selectClass = "flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600";
 
+// Map from short grade '10' to CHEMISTRY_CURRICULUM key 'Lớp 10'
+const GRADE_KEY: Record<string, string> = { '10': 'Lớp 10', '11': 'Lớp 11', '12': 'Lớp 12' };
+
 export function LessonManager({
   lessons,
   newLessonGrade, newLessonChapter, newLessonTitle,
@@ -145,7 +148,7 @@ export function LessonManager({
                   <select className={selectClass} value={newLessonChapter}
                     onChange={(e) => { setNewLessonChapter(e.target.value); setNewLessonTitle(""); }}>
                     <option value="">-- Chọn Chương --</option>
-                    {Object.keys(CHEMISTRY_CURRICULUM[`Lớp ${newLessonGrade}`] || CHEMISTRY_CURRICULUM[newLessonGrade] || {}).map(chap => (
+                    {Object.keys(CHEMISTRY_CURRICULUM[GRADE_KEY[newLessonGrade]] || {}).map(chap => (
                       <option key={chap} value={chap}>{chap}</option>
                     ))}
                   </select>
@@ -155,7 +158,7 @@ export function LessonManager({
                   <select className={selectClass} value={newLessonTitle}
                     onChange={(e) => setNewLessonTitle(e.target.value)} disabled={!newLessonChapter}>
                     <option value="">-- Chọn Bài học --</option>
-                    {(CHEMISTRY_CURRICULUM[`Lớp ${newLessonGrade}`]?.[newLessonChapter] || CHEMISTRY_CURRICULUM[newLessonGrade]?.[newLessonChapter] || []).map(lesson => (
+                    {(CHEMISTRY_CURRICULUM[GRADE_KEY[newLessonGrade]]?.[newLessonChapter] || []).map(lesson => (
                       <option key={lesson} value={lesson}>{lesson}</option>
                     ))}
                   </select>
@@ -356,9 +359,9 @@ export function LessonManager({
                       <label className="text-sm font-medium">Khối Lớp</label>
                       <select className={selectClass} value={editingLesson.grade}
                         onChange={(e) => setEditingLesson({ ...editingLesson, grade: e.target.value, chapter: "", title: "" })}>
-                        <option value="Lớp 10">Lớp 10</option>
-                        <option value="Lớp 11">Lớp 11</option>
-                        <option value="Lớp 12">Lớp 12</option>
+                        <option value="10">Khối 10</option>
+                        <option value="11">Khối 11</option>
+                        <option value="12">Khối 12</option>
                       </select>
                     </div>
                     <div className="space-y-2">
@@ -366,7 +369,7 @@ export function LessonManager({
                       <select className={selectClass} value={editingLesson.chapter}
                         onChange={(e) => setEditingLesson({ ...editingLesson, chapter: e.target.value, title: "" })}>
                         <option value="">-- Chọn Chương --</option>
-                        {Object.keys(CHEMISTRY_CURRICULUM[editingLesson.grade] || {}).map(chap => (
+                        {Object.keys(CHEMISTRY_CURRICULUM[GRADE_KEY[editingLesson.grade]] || {}).map(chap => (
                           <option key={chap} value={chap}>{chap}</option>
                         ))}
                       </select>
@@ -377,7 +380,7 @@ export function LessonManager({
                         onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
                         disabled={!editingLesson.chapter}>
                         <option value="">-- Chọn Bài học --</option>
-                        {(CHEMISTRY_CURRICULUM[editingLesson.grade]?.[editingLesson.chapter] || []).map(lesson => (
+                        {(CHEMISTRY_CURRICULUM[GRADE_KEY[editingLesson.grade]]?.[editingLesson.chapter] || []).map(lesson => (
                           <option key={lesson} value={lesson}>{lesson}</option>
                         ))}
                       </select>

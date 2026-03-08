@@ -89,6 +89,7 @@ export function TeacherDashboard() {
         title: newLessonTitle,
         description: "Bài giảng với nội dung lý thuyết từ AI hoặc Giáo viên cung cấp.",
         chapter: newLessonChapter,
+        grade: newLessonGrade,   // ← must pass grade so DB stores '10'/'11'/'12'
         theoryContent,
         youtubeUrl: getEmbedUrl(youtubeUrl),
         practiceConfig: { mcq: mcqCount, tf: tfCount, short: shortCount, timeLimit, points: { mcq: mcqPoints, tf: tfPoints, short: shortPoints } },
@@ -109,11 +110,20 @@ export function TeacherDashboard() {
   };
 
   const handleEditClick = (lesson: any) => {
+    // Normalize grade to standard '10'/'11'/'12' format
+    // Handle old format 'Lớp 10' and new format '10' both
     let matchedGrade = lesson.grade;
-    if (!matchedGrade) {
-      matchedGrade = Object.keys(CHEMISTRY_CURRICULUM).find(grade =>
-        Object.keys(CHEMISTRY_CURRICULUM[grade]).includes(lesson.chapter)
-      ) || "Lớp 10";
+    if (!matchedGrade || matchedGrade.startsWith('Lớp ') || matchedGrade.startsWith('Khối ')) {
+      // Try to extract number from 'Lớp 10' or 'Khối 10'
+      const numMatch = String(matchedGrade || '').match(/\d+/);
+      if (numMatch) {
+        matchedGrade = numMatch[0];
+      } else {
+        // Guess from chapter which grade it belongs to
+        matchedGrade = Object.keys(CHEMISTRY_CURRICULUM).find(g =>
+          Object.keys(CHEMISTRY_CURRICULUM[g] || {}).includes(lesson.chapter)
+        )?.replace('Lớp ', '') || '10';
+      }
     }
 
     setEditingLesson({
