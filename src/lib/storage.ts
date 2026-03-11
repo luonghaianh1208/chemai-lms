@@ -28,12 +28,41 @@ const mapStudent = (s: any) => s ? {
   status: s.status
 } : null;
 
+// ─── User row cache ──────────────────────────────────────────────────────────
+// Stores the result of the (auth.getUser + users table) lookup for 30 seconds.
+// This eliminates the N+1 storm when many Storage functions are called on the
+// same page load — all concurrent calls share a single DB round-trip.
+let _userCache: { row: any; expiry: number } | null = null;
+let _userCachePromise: Promise<any> | null = null;
+
+export function clearUserCache() {
+  _userCache = null;
+  _userCachePromise = null;
+}
+
 /** Get the public.users row for the current Supabase Auth user. Returns null if not authenticated. */
 async function getCurrentUserRow() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('users').select('id, role').eq('auth_id', user.id).maybeSingle();
-  return data ?? null;
+  const now = Date.now();
+
+  // Return cached result if still fresh
+  if (_userCache && now < _userCache.expiry) return _userCache.row;
+
+  // Deduplicate concurrent calls — if a fetch is already in-flight, await it
+  if (_userCachePromise) return _userCachePromise;
+
+  _userCachePromise = (async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { _userCache = null; return null; }
+      const { data } = await supabase.from('users').select('id, role').eq('auth_id', user.id).maybeSingle();
+      _userCache = { row: data ?? null, expiry: Date.now() + 30_000 }; // 30s TTL
+      return _userCache.row;
+    } finally {
+      _userCachePromise = null;
+    }
+  })();
+
+  return _userCachePromise;
 }
 
 export const Storage = {

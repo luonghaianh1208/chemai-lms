@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { clearUserCache } from './storage';
 
 type AuthContextType = {
   session: Session | null;
@@ -101,6 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen to login/logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
+        // Invalidate user cache whenever auth state changes
+        clearUserCache();
         setSession(newSession);
         setUser(newSession?.user ?? null);
         applyUser(newSession?.user ?? null);
@@ -114,6 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    // Invalidate the user row cache before sign-out
+    clearUserCache();
     // Clear state first so UI responds immediately
     setProfile(null);
     setSession(null);

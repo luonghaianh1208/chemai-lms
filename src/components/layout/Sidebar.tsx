@@ -10,7 +10,10 @@ import {
   LogOut,
   Users,
   ShieldAlert,
-  GraduationCap
+  GraduationCap,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
@@ -39,7 +42,14 @@ const adminNav = [
   { name: "Cấu hình AI", href: "/?tab=settings", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  isCollapsed: boolean;
+  onClose: () => void;
+  onToggleCollapse: () => void;
+}
+
+export function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse }: SidebarProps) {
   const location = useLocation();
   const { profile, signOut } = useAuth();
   
@@ -47,56 +57,155 @@ export function Sidebar() {
   const navItems = role === 'admin' ? adminNav : role === 'teacher' ? teacherNav : studentNav;
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 transition-colors">
-      <div className="flex h-20 items-center px-6 border-b border-slate-200 dark:border-slate-700">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2 font-bold text-xl text-indigo-600 dark:text-indigo-400">
-             <BookOpen className="h-6 w-6" />
-             <span>ChemAI LMS</span>
-          </div>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
-            Đồng tác giả: Thầy giáo Bùi Hữu Hải và thầy giáo Lương Hải Anh - Trường THPT Chuyên Nguyễn Trãi
-          </span>
-        </div>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto py-4">
-        <nav className="space-y-1 px-3">
-          {navItems.map((item) => {
-            const currentPath = location.pathname + location.search;
-            const isActive = item.href === "/" ? currentPath === "/" : currentPath.includes(item.href);
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400" 
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+    <>
+      {/* Mobile backdrop overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      <div className="border-t border-slate-200 dark:border-slate-700 p-4">
-        <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors">
-          <Settings className="h-5 w-5" />
-          Cài đặt
+      {/* Sidebar panel */}
+      <aside
+        className={cn(
+          // Base styles
+          "fixed top-0 left-0 z-30 flex h-screen flex-col",
+          "bg-white dark:bg-slate-900",
+          "border-r border-slate-200 dark:border-slate-700",
+          "transition-all duration-300 ease-in-out",
+          // Desktop: always in-flow, either full or icon-only
+          "lg:static lg:z-auto",
+          // Width based on collapse state (desktop) or open state (mobile/tablet)
+          isCollapsed ? "w-16" : "w-64",
+          // Mobile: slide in/out from left (fixed positioning handled above)
+          !isOpen && "max-lg:-translate-x-full",
+          isOpen && "max-lg:translate-x-0",
+        )}
+      >
+        {/* Logo / Brand */}
+        <div className={cn(
+          "flex h-16 items-center border-b border-slate-200 dark:border-slate-700 shrink-0",
+          isCollapsed ? "justify-center px-0" : "px-4 gap-2"
+        )}>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={cn(
+              "flex items-center justify-center rounded-lg bg-indigo-600 text-white shrink-0",
+              isCollapsed ? "h-8 w-8" : "h-8 w-8"
+            )}>
+              <BookOpen className="h-4 w-4" />
+            </div>
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0 overflow-hidden">
+                <span className="font-bold text-base text-indigo-600 dark:text-indigo-400 truncate">ChemAI LMS</span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 leading-tight truncate">
+                  THPT Chuyên Nguyễn Trãi
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile close button */}
+          {!isCollapsed && (
+            <button
+              onClick={onClose}
+              className="ml-auto lg:hidden p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+              aria-label="Đóng menu"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <div 
-          onClick={signOut}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer mt-1 transition-colors"
+
+        {/* Nav items */}
+        <div className="flex-1 overflow-y-auto py-3">
+          <nav className={cn("space-y-0.5", isCollapsed ? "px-2" : "px-3")}>
+            {navItems.map((item) => {
+              const currentPath = location.pathname + location.search;
+              const isActive = item.href === "/" ? currentPath === "/" : currentPath.includes(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  onClick={() => {
+                    // On mobile, close sidebar after navigation
+                    if (window.innerWidth < 1024) onClose();
+                  }}
+                  title={isCollapsed ? item.name : undefined}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
+                    isCollapsed ? "justify-center p-2.5" : "px-3 py-2.5",
+                    isActive 
+                      ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400" 
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                  )}
+                >
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Bottom: settings + sign out */}
+        <div className={cn(
+          "border-t border-slate-200 dark:border-slate-700 py-3 space-y-0.5 shrink-0",
+          isCollapsed ? "px-2" : "px-3"
+        )}>
+          {!isCollapsed && (
+            <div className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-xs text-slate-400 dark:text-slate-500 truncate",
+            )}>
+              <div className={cn(
+                "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0",
+                role === 'teacher' ? 'bg-emerald-600' : 'bg-indigo-600'
+              )}>
+                {role === 'teacher' ? 'GV' : 'HS'}
+              </div>
+              <div className="min-w-0 overflow-hidden">
+                <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate">
+                  {profile?.full_name || (role === 'teacher' ? 'Giáo viên' : 'Học sinh')}
+                </p>
+                <p className="text-[10px] text-slate-400">{role === 'teacher' ? 'Giáo viên' : 'Học sinh'}</p>
+              </div>
+            </div>
+          )}
+
+          <div
+            onClick={signOut}
+            title={isCollapsed ? "Đăng xuất" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-lg text-sm font-medium text-red-500 dark:text-red-400",
+              "hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer transition-colors",
+              isCollapsed ? "justify-center p-2.5" : "px-3 py-2.5"
+            )}
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            {!isCollapsed && <span>Đăng xuất</span>}
+          </div>
+        </div>
+
+        {/* Desktop collapse toggle button */}
+        <button
+          onClick={onToggleCollapse}
+          className={cn(
+            "hidden lg:flex items-center justify-center",
+            "absolute -right-3 top-20",
+            "h-6 w-6 rounded-full border border-slate-200 dark:border-slate-700",
+            "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400",
+            "hover:text-indigo-600 dark:hover:text-indigo-400",
+            "shadow-sm transition-colors z-10"
+          )}
+          aria-label={isCollapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
         >
-          <LogOut className="h-5 w-5" />
-          Đăng xuất
-        </div>
-      </div>
-    </div>
+          {isCollapsed
+            ? <ChevronRight className="h-3.5 w-3.5" />
+            : <ChevronLeft className="h-3.5 w-3.5" />
+          }
+        </button>
+      </aside>
+    </>
   );
 }

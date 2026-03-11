@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, Search, User, Clock, CheckCircle2, AlertTriangle, BookOpen, Sun, Moon, Monitor } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Bell, Search, Clock, CheckCircle2, AlertTriangle, Sun, Moon, Monitor, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 import { Storage } from "@/lib/storage";
@@ -9,8 +8,8 @@ import { toast } from "sonner";
 import { useTheme } from "@/lib/ThemeContext";
 import { cn } from "@/lib/utils";
 
-export function Header() {
-  const { profile } = useAuth();
+export function Header({ onOpenSidebar }: { onOpenSidebar: () => void }) {
+  const { profile, profileReady } = useAuth();
   const { theme, setTheme } = useTheme();
   const role = profile?.role || 'student';
   const [showNotifications, setShowNotifications] = useState(false);
@@ -18,15 +17,24 @@ export function Header() {
   const [showTheme, setShowTheme] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const themeRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // Don't load notifications until auth profile is confirmed from DB
+    if (!profileReady) return;
+
     const generateNotifications = async () => {
-      const allLessons = (await Storage.getLessons()) || [];
       const notifs: any[] = [];
       const now = new Date().getTime();
 
       if (role === 'teacher') {
-        const cheatWarnings = (await Storage.getCheatWarnings()) || [];
+        // Fetch in parallel
+        const [allLessons, cheatWarnings, reports] = await Promise.all([
+          Storage.getLessons(),
+          Storage.getCheatWarnings(),
+          Storage.getReportedBugs(),
+        ]);
+
         cheatWarnings.forEach((warning: any) => {
           notifs.push({
             type: 'critical',
@@ -36,7 +44,6 @@ export function Header() {
           });
         });
 
-        const reports = (await Storage.getReportedBugs()) || [];
         reports.forEach((r: any) => {
           notifs.push({
             type: 'warning',
@@ -46,8 +53,12 @@ export function Header() {
           });
         });
       } else {
-        // Teacher comments for student
-        const teacherComments = await Storage.getTeacherCommentsForMe();
+        // Student: fetch in parallel
+        const [allLessons, teacherComments] = await Promise.all([
+          Storage.getLessons(),
+          Storage.getTeacherCommentsForMe(),
+        ]);
+
         teacherComments.forEach((c: any) => {
           notifs.push({
             type: c.isRead ? 'success' : 'critical',
@@ -82,6 +93,12 @@ export function Header() {
       setNotifications(notifs.slice(0, 8));
     };
 
+    // Debounced refresh — prevents burst load when multiple realtime events fire
+    const debouncedRefresh = () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(generateNotifications, 600);
+    };
+
     generateNotifications();
 
     // Real-time: teacher gets INSTANT toast when student triggers cheat or sends report
@@ -90,20 +107,19 @@ export function Header() {
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cheat_warnings' }, (payload) => {
           const row = payload.new as any;
           toast.error(`🚨 Cảnh báo gian lận! Học sinh vừa thoát khỏi bài thi "${row.lesson_title}".`, { duration: 8000 });
-          generateNotifications();
+          debouncedRefresh();
         })
         .subscribe();
 
       const reportChannel = supabase.channel('rt_reports')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, (payload) => {
-          const row = payload.new as any;
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, () => {
           toast.warning(`📋 Có báo cáo câu hỏi mới từ học sinh!`, { duration: 6000 });
-          generateNotifications();
+          debouncedRefresh();
         })
         .subscribe();
 
       const progressChannel = supabase.channel('rt_progress')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'progress' }, () => generateNotifications())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'progress' }, debouncedRefresh)
         .subscribe();
 
       const handleClickOutside = (e: MouseEvent) => {
@@ -117,18 +133,18 @@ export function Header() {
         reportChannel.unsubscribe();
         progressChannel.unsubscribe();
         document.removeEventListener('mousedown', handleClickOutside);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
       };
     } else {
       const progressChannel = supabase.channel('header_progress_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'progress' }, () => generateNotifications())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'progress' }, debouncedRefresh)
         .subscribe();
 
       // Student gets instant toast when teacher sends a comment
       const commentChannel = supabase.channel('rt_teacher_comments')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'teacher_comments' }, (payload) => {
-          const row = payload.new as any;
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'teacher_comments' }, () => {
           toast.info(`📝 Giáo viên vừa gửi nhận xét cho bạn!`, { duration: 6000 });
-          generateNotifications();
+          debouncedRefresh();
         })
         .subscribe();
 
@@ -141,9 +157,10 @@ export function Header() {
         progressChannel.unsubscribe();
         commentChannel.unsubscribe();
         document.removeEventListener('mousedown', handleClickOutside);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
       };
     }
-  }, [role]);
+  }, [role, profileReady]);
 
   const themeOptions: { value: 'light' | 'dark' | 'system'; label: string; icon: any }[] = [
     { value: 'light', label: 'Sáng', icon: Sun },
@@ -152,14 +169,24 @@ export function Header() {
   ];
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 transition-colors">
-      <div className="flex items-center w-full max-w-md">
+    <header className="flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 md:px-6 transition-colors gap-2">
+      {/* Mobile hamburger button */}
+      <button
+        onClick={onOpenSidebar}
+        className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+        aria-label="Mở menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Search bar — hidden on very small screens */}
+      <div className="hidden sm:flex items-center flex-1 max-w-md">
         <div className="relative w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500 dark:text-slate-400" />
-          <Input
+          <input
             type="search"
             placeholder="Tìm kiếm bài học, câu hỏi..."
-            className="w-full pl-9 bg-slate-50 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 dark:text-white dark:placeholder:text-slate-400"
+            className="w-full pl-9 h-9 rounded-md border border-transparent bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-700 focus:border-slate-300 dark:focus:border-slate-600 transition-colors"
           />
         </div>
       </div>
@@ -212,7 +239,7 @@ export function Header() {
           </Button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+            <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-80 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Thông báo</h3>
                 <span className="text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium px-2 py-0.5 rounded-full">{notifications.length} mới</span>
@@ -242,17 +269,17 @@ export function Header() {
           )}
         </div>
 
-        {/* User info */}
-        <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-700 pl-3">
-          <div className="flex flex-col items-end">
-            <span className="text-sm font-medium text-slate-900 dark:text-white">
+        {/* User info — hide name on small screens */}
+        <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-3">
+          <div className="hidden sm:flex flex-col items-end">
+            <span className="text-sm font-medium text-slate-900 dark:text-white leading-tight">
               {role === 'teacher' ? 'Giáo viên' : (profile?.full_name || 'Học sinh')}
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-semibold">
               {role === 'teacher' ? 'QUẢN LÝ' : 'HỌC VIÊN'}
             </span>
           </div>
-          <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm transition-transform hover:scale-105 ${
+          <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm transition-transform hover:scale-105 shrink-0 ${
             role === 'teacher' ? 'bg-emerald-600' : 'bg-indigo-600'
           }`}>
             {role === 'teacher' ? 'GV' : 'HS'}

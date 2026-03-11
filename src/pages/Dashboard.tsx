@@ -18,14 +18,20 @@ export function Dashboard() {
   const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
 
   useEffect(() => {
+    if (!profile) return; // Wait for auth profile before fetching
+    let cancelled = false;
+
     const load = async () => {
       const studentGrade = profile?.grade || '';
-      const dbLessons = await Storage.getLessons(studentGrade || undefined);
-      const user = await Storage.getUser();
-      const studyMins = await Storage.getTotalStudyMinutes();
+      // Fetch in parallel — eliminates sequential waterfall
+      const [dbLessons, studyMins] = await Promise.all([
+        Storage.getLessons(studentGrade || undefined),
+        Storage.getTotalStudyMinutes(),
+      ]);
+      if (cancelled) return;
       setTotalStudyMinutes(studyMins);
       setData({
-        user,
+        user: { name: profile.full_name || profile.email || 'Học sinh', overall_progress: profile.overall_progress || 0 },
         lessonsProgress: dbLessons
       });
 
@@ -50,16 +56,16 @@ export function Dashboard() {
           method: 'POST',
           body: JSON.stringify({ message: prompt })
         }).then(r => r.json()).then(res => {
+           if (cancelled) return;
            setAiAnalysis(res.reply);
            localStorage.setItem('ai_insight_cache', JSON.stringify({ compCount, cAvg, text: res.reply }));
-        }).catch(() => setAiAnalysis("Lỗi khi tải phân tích từ AI."));
+        }).catch(() => { if (!cancelled) setAiAnalysis("Lỗi khi tải phân tích từ AI."); });
       } else {
         setAiAnalysis("Bạn chưa hoàn thành bài học nào. Hãy học bài đầu tiên để AI đánh giá nhé!");
       }
     };
     
-    // Slight delay to allow smooth transition showing loading state
-    setTimeout(() => load(), 300);
+    load();
 
     const channel = supabase.channel('student_dashboard_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'progress' }, () => {
@@ -71,9 +77,10 @@ export function Dashboard() {
       .subscribe();
 
     return () => {
+      cancelled = true;
       channel.unsubscribe();
     };
-  }, []);
+  }, [profile?.id]);
 
   if (!data) return <div className="p-8 text-center text-slate-500">Đang tải dữ liệu...</div>;
 
