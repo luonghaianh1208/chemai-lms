@@ -9,6 +9,7 @@ type AuthContextType = {
   profile: any | null;
   profileReady: boolean;  // true once DB profile is confirmed
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
   isLoading: boolean;
 };
 
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   profileReady: false,
   signOut: async () => {},
+  refreshProfile: async () => {},
   isLoading: false,
 });
 
@@ -126,8 +128,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  /** Re-fetch profile from DB and update context state (e.g. after saving class_name) */
+  const refreshProfile = async () => {
+    const currentUser = user;
+    if (!currentUser) return;
+    clearUserCache();
+    const dbData = await fetchDBProfile(currentUser.id);
+    if (dbData) {
+      setProfile(dbData);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ session, user, profile, profileReady, signOut, isLoading }}>
+    <AuthContext.Provider value={{ session, user, profile, profileReady, signOut, refreshProfile, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

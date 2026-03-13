@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Dashboard } from "@/pages/Dashboard";
 import { TeacherDashboard } from "@/pages/TeacherDashboard";
@@ -15,7 +15,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) {
-  const { session, profile, isLoading } = useAuth();
+  const { session, profile, profileReady, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -42,6 +43,16 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode,
   // Role based access control
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
     return <Navigate to="/" replace />;
+  }
+
+  // Bắt buộc học sinh nhập tên lớp trước khi sử dụng hệ thống
+  if (
+    profileReady &&
+    profile.role === 'student' &&
+    !profile.class_name &&
+    location.pathname !== '/settings'
+  ) {
+    return <Navigate to="/settings" replace />;
   }
 
   return <>{children}</>;

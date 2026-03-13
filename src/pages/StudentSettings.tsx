@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, UserCircle, GraduationCap, School } from 'lucide-react';
+import { Loader2, Save, UserCircle, GraduationCap, School, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
@@ -18,11 +19,15 @@ const GRADE_OPTIONS = [
 ];
 
 export function StudentSettings() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [grade, setGrade] = useState('');
   const [className, setClassName] = useState('');
   const [loading, setLoading] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+
+  // Học sinh chưa có tên lớp đang bị buộc vào trang này
+  const isRequired = !!(profile?.role === 'student' && !profile?.class_name);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -50,10 +55,15 @@ export function StudentSettings() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!grade) { toast.error('Vui lòng chọn khối học'); return; }
+    if (!className.trim()) { toast.error('Vui lòng nhập tên lớp'); return; }
     setLoading(true);
     try {
-      await Storage.updateStudentProfile({ grade, className });
+      await Storage.updateStudentProfile({ grade, className: className.trim() });
       toast.success('Đã cập nhật hồ sơ thành công!');
+      // Refresh profile trong context để guard nhận biết class_name đã có
+      await refreshProfile();
+      // Quay về trang chủ
+      setTimeout(() => navigate('/'), 800);
     } catch (err: any) {
       toast.error('Lỗi cập nhật: ' + (err.message || 'Vui lòng thử lại'));
     } finally {
@@ -71,6 +81,20 @@ export function StudentSettings() {
 
   return (
     <div className="space-y-6 max-w-lg">
+      {/* Banner bắt buộc khi chưa có tên lớp */}
+      {isRequired && (
+        <div className="rounded-xl border-2 border-orange-400 bg-orange-50 p-4 flex gap-3 items-start shadow-sm">
+          <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-orange-800">Bạn chưa điền tên lớp!</p>
+            <p className="text-sm text-orange-700 mt-0.5">
+              Vui lòng bổ sung <strong>khối học</strong> và <strong>tên lớp</strong> để tiếp tục sử dụng hệ thống.
+              Thông tin này giúp giáo viên quản lý bạn chính xác hơn.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Hồ sơ cá nhân</h1>
         <p className="text-slate-500">Cập nhật thông tin học sinh của bạn.</p>
@@ -95,7 +119,7 @@ export function StudentSettings() {
       </Card>
 
       {/* Editable profile */}
-      <Card>
+      <Card className={isRequired ? 'border-orange-300 ring-1 ring-orange-300' : ''}>
         <CardHeader>
           <CardTitle className="text-base">Thông tin học tập</CardTitle>
           <CardDescription>Bổ sung hoặc cập nhật thông tin lớp học</CardDescription>
@@ -130,7 +154,7 @@ export function StudentSettings() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
                 <School className="h-4 w-4 text-indigo-500" />
-                Tên lớp
+                Tên lớp <span className="text-red-500">*</span>
               </label>
               <Input
                 type="text"
@@ -138,24 +162,26 @@ export function StudentSettings() {
                 value={className}
                 onChange={e => setClassName(e.target.value)}
                 maxLength={20}
+                className={isRequired ? 'border-orange-400 focus-visible:ring-orange-400' : ''}
               />
               <p className="text-xs text-slate-400">Nhập tên lớp của bạn để giáo viên dễ nhận diện</p>
             </div>
 
-            <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
+            <Button
+              type="submit"
+              className={`w-full ${
+                isRequired
+                  ? 'bg-orange-500 hover:bg-orange-600'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
+              disabled={loading}
+            >
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Lưu thông tin
+              {isRequired ? 'Lưu và tiếp tục' : 'Lưu thông tin'}
             </Button>
           </form>
         </CardContent>
       </Card>
-
-      {/* Class missing warning */}
-      {!className && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          <strong>Chưa có tên lớp!</strong> Vui lòng bổ sung tên lớp để giáo viên có thể quản lý chính xác hơn.
-        </div>
-      )}
     </div>
   );
 }
